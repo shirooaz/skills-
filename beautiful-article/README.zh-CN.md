@@ -1,254 +1,447 @@
-# GPT Image 2 Skill
+# Beautiful Article Skill —— 把任意素材编辑成一篇精美的文章
 
-**面向 GPT Image 2 的聚焦型图像生成 / 编辑技能。一份 SKILL 定义，自动适配三种运行环境——本地直接出图、宿主原生图像工具、纯提示词顾问。**
+> 一个面向 AI Agent 的 Skill：把任意素材（URL / PDF / DOCX / Markdown / 纯文本 / 截图 / 粘贴材料）**编辑、设计**成一篇**比原文更易读、更便于分享和归档的精美文章**。
 
 [English](./README.md) · [返回集合首页](../../README.zh-CN.md)
 
-![GPT Image 2 Skill](https://cdn.jsdelivr.net/gh/ConardLi/assets@main/imgs/gpt-image-2-skill.webp)
+![Beautiful Article Skill](https://cdn.jsdelivr.net/gh/ConardLi/assets@main/imgs/article/banner.webp)
+
+---
+
+### 由 [ReActicle](https://github.com/ConardLi/reacticle) 驱动
+
+`beautiful-article` 是编辑型 **harness**（方法论、checkpoint、主题选型、sub-agent reviewer）；[`reacticle`](https://github.com/ConardLi/reacticle) 是 Skill 在运行时调用的**底层组件协议** —— prose-first 的 React 语义组件 + 基于主题 token 的 `Raw` 自由层，统一接到同一套主题系统上。
+
+```
+beautiful-article  （本 Skill · 方法论 + harness）
+        │  调用
+        ▼
+reacticle          （npm 包 · 组件 / 主题 / Raw / 导出）
+```
+
+| 层级 | 负责什么 | 仓库 / 文档 |
+|---|---|---|
+| `beautiful-article`（本 Skill） | **怎么** 让 Agent 从任意素材出发，规划、撰写、审阅、交付一篇文章 —— 6 阶段流程、3 个硬 checkpoint、主题选型、sub-agent reviewer | 当前目录 |
+| `reacticle` | Skill 实际拼装出的组件词表 + 11 套 authoring 主题 —— `Article` / `Hero` / `Lead` / `Section` / `Quote` / `Image` / `Formula` / `CodeBlock` / `Raw` …，每套主题 = 一份 `.css` token 包 + 一份 `.md` authoring profile | [`ConardLi/reacticle`](https://github.com/ConardLi/reacticle) · [npm `reacticle`](https://www.npmjs.com/package/reacticle) · [文档站](https://rearticle.mmh1.top/) |
+
+二者搭配最佳但相互独立：Skill 因为有 ReActicle 这个稳定目标层才能跑通；ReActicle 单独作为 React 组件库使用也完全立得住。
+
+---
+
+### [文章实例](https://mmh1.top/#/ai-article) —— 用 `beautiful-article` + ReActicle 写出来的真实文章
+
+每一篇都是 AI Agent 用本 Skill 调用 [`reacticle`](https://www.npmjs.com/package/reacticle) 组件协议端到端写完的真实长文。点封面即可在线打开单文件 HTML 版本。
+
+<table>
+<tr>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/tools">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/tools.webp" alt="Agent Tools 设计的最佳实践" width="320">
+<br><b>Agent Tools 设计的最佳实践</b>
+</a>
+<br><sub>Theme · Freddie · 长文 · 21 min</sub>
+<br><sup>Anthropic 工程团队关于 Tools 的五条原则，与一套评测驱动的方法。</sup>
+</td>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/skill">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/skill.webp" alt="Agent Skill 是如何进化的？" width="320">
+<br><b>Agent Skill 是如何进化的？</b>
+</a>
+<br><sub>Theme · Freddie · 解释文 · 8 min</sub>
+<br><sup>把 Skill 文档当成被训练的对象，而不是被复制粘贴的 prompt。</sup>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/harness">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/harness.webp" alt="Agent Harness 的解剖图" width="320">
+<br><b>Agent Harness 的解剖图</b>
+</a>
+<br><sub>Theme · Vignelli · 长文 · 12 min</sub>
+<br><sup>智能在模型里；让智能变得有用的，是它周围的那套系统。</sup>
+</td>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/prompt-cache">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/prompt-cache.webp" alt="提示词缓存对 Agent 有多重要？" width="320">
+<br><b>提示词缓存对 Agent 有多重要？</b>
+</a>
+<br><sub>Theme · Bayer · 长文 · 15 min</sub>
+<br><sup>缓存命中率是 Agent 的 SLO，Claude Code 团队的反直觉经验。</sup>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/context">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/context.webp" alt="面向 Agent 的高效上下文工程" width="320">
+<br><b>面向 Agent 的高效上下文工程</b>
+</a>
+<br><sub>Theme · Tufte · 长文 · 16 min</sub>
+<br><sup>本文探讨如何高效地筛选与管理驱动 AI Agent 运转的上下文。</sup>
+</td>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/transformer">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/transformer.webp" alt="Attention Is All You Need" width="320">
+<br><b>Attention Is All You Need</b>
+</a>
+<br><sub>Theme · Tufte · 长文 · 30 min</sub>
+<br><sup>一篇重塑现代 AI 的论文，逐层拆给你看。</sup>
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/agent-eval">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/agent-eval.webp" alt="把 AI Agent 的评测讲清楚" width="320">
+<br><b>把 AI Agent 的评测讲清楚</b>
+</a>
+<br><sub>Theme · Tufte · 长文 · 25 min</sub>
+<br><sup>让 Agent 有用的那些能力，恰恰让它难以评测 —— 来自 Anthropic 的指南。</sup>
+</td>
+<td width="50%" valign="top" align="center">
+<a href="https://mmh1.top/#/ai-article/agent-loop-codex">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/agent-loop-codex.webp" alt="Codex 的 Agent Loop 是怎么做的？" width="320">
+<br><b>Codex 的 Agent Loop 是怎么做的？</b>
+</a>
+<br><sub>Theme · Sottsass · 长文 · 18 min</sub>
+<br><sup>OpenAI 官方分享：在 Responses API 之上，一条对话是如何被反复"展开"的。</sup>
+</td>
+</tr>
+</table>
+
+---
+
+### [主题概览](https://rearticle.mmh1.top/#/gallery) —— 每套主题一篇样品文章
+
+> 11 套主题已上架。每套主题的完整契约（`.css` token 包 + `.md` authoring profile、anti-patterns、code/media style）见 [Theming](https://rearticle.mmh1.top/#/theming)。
+
+每套主题都附一篇**样品长文**，从字体到摄影、代码、公式、Raw 块通通走一遍。点封面在线阅读，点主题名跳到该主题在文档站的章节。
+
+<table>
+<tr>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/caffeine-half-life">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-tufte.webp" alt="Tufte · Data-Ink" width="260">
+<br><b>Tufte</b> · Data-Ink
+</a>
+<br><sub>咖啡因与睡眠 · 数据笔记</sub>
+<br><sup>Edward Tufte 数据墨水，证据优先，发丝级图表与最朴素的版式。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/movable-type">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-press.webp" alt="Press · 书卷" width="260">
+<br><b>Press</b> · 书卷
+</a>
+<br><sub>活字之后 · 随笔</sub>
+<br><sup>Stripe Press 式书卷长读物：会落定的标题、氧化血红首字母、纯正文之美。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/pool-exhaustion">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-shannon.webp" alt="Shannon · 工程暗色" width="260">
+<br><b>Shannon</b> · 工程暗色
+</a>
+<br><sub>连接池耗尽 · 故障复盘</sub>
+<br><sup>贝尔实验室技术论文血统，暗底黄金信号、回压依赖、夜间作战气质。</sup>
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/orbit-spec">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-vignelli.webp" alt="Vignelli · 瑞士" width="260">
+<br><b>Vignelli</b> · 瑞士网格
+</a>
+<br><sub>Orbit 设计系统规格 · 规格</sub>
+<br><sup>Massimo Vignelli 网格至上、grotesque 字族、瑞士红只承载结构。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/linear-attention">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/knuth.png" alt="Knuth · 学术" width="260">
+<br><b>Knuth</b> · 学术
+</a>
+<br><sub>线性化自注意力 · 预印本</sub>
+<br><sup>Donald Knuth / Computer Modern，编号小节、命题与证明、arXiv 草稿气质。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/first-newsletter">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-freddie.webp" alt="Freddie · 暖黄" width="260">
+<br><b>Freddie</b> · 暖黄
+</a>
+<br><sub>第一封 Newsletter · 上手指南</sub>
+<br><sup>Mailchimp Freddie 黑字荧光，亲和插画 + 不端着的产品上手语气。</sup>
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/slow-breathing">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-andy.webp" alt="Andy · 静谧" width="260">
+<br><b>Andy</b> · 静谧
+</a>
+<br><sub>把呼吸放慢 · 练习</sub>
+<br><sup>柔软圆润、呼吸-神经跷跷板，让人慢下来的练习气质。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/front-page">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-bodoni.webp" alt="Bodoni · 报刊" width="260">
+<br><b>Bodoni</b> · 报刊
+</a>
+<br><sub>头版的消亡 · 特稿</sub>
+<br><sup>高对比 Didone 报刊气质，黑白大报、对折线之上的分量。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/geometry-of-meaning">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-bayer.webp" alt="Bayer · 包豪斯" width="260">
+<br><b>Bayer</b> · 包豪斯
+</a>
+<br><sub>形、色、网格 · 教学</sub>
+<br><sup>Herbert Bayer 包豪斯三原色几何，形有性格、色有重量。</sup>
+</td>
+</tr>
+<tr>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/rate-limiter-spec">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-fuller.webp" alt="Fuller · 蓝图" width="260">
+<br><b>Fuller</b> · 蓝图
+</a>
+<br><sub>限流器设计规格 · 系统设计</sub>
+<br><sup>Buckminster Fuller 工程蓝图，方格纸拓扑、令牌桶模拟，可照着实现。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+<a href="https://rearticle.mmh1.top/#/gallery/color-clash">
+<img src="https://raw.githubusercontent.com/ConardLi/assets/main/imgs/article/theam-sottsass.webp" alt="Sottsass · 孟菲斯" width="260">
+<br><b>Sottsass</b> · 孟菲斯
+</a>
+<br><sub>撞色不翻车 · 设计随笔</sub>
+<br><sup>Memphis 80s 撞色，黑描边、硬投影、轻微旋转的不正经语法。</sup>
+</td>
+<td width="33%" valign="top" align="center">
+&nbsp;
+</td>
+</tr>
+</table>
+
+> 完整的 11 套主题样品（含主题切换、搜索与筛选）在线 gallery：<https://rearticle.mmh1.top/#/gallery>。
 
 ---
 
 ## 这个 Skill 干什么
 
-围绕 GPT Image 2（以及任何 OpenAI 兼容的图像接口）做的结构化提示词工程 + 图像生成包。只做两件事——`POST /images/generations` 和 `POST /images/edits`，但能在三种完全不同的运行环境下做到对用户无感。
+`beautiful-article` 把原本枯燥、线性、难以消化的文字材料变成视觉体验更漂亮、阅读节奏更清晰、也更便于审阅和分享的**文章**。它**不是**网页应用生成器 —— 注意力永远在"文章"本身：更好的阅读、更好的节奏、更好的美学。最终交付物是一份自包含、可离线打开的文件（可选随附 PDF），但那是交付细节、不是目标。
 
-它内置了：
+适合的场景：
 
-- **模式感知工作流**：无论 Agent 自己持有 API key、宿主带原生图像工具、还是完全没有图像工具，同一份 Skill 都能用。
-- **结构化模板库**：18 大类、79 个提示词模板，覆盖海报、UI 样机、产品图、信息图、学术图、技术架构图、漫画、头像、编辑工作流。
-- **可复用的 prompt + 图片归档**：默认落盘到 `garden-gpt-image-2/prompt/` 和 `garden-gpt-image-2/image/`，按 `<task-slug>-<timestamp>` 命名。
+- 把一篇长 URL / PDF / DOCX / Markdown 编辑成一篇**网页长文**
+- 决策摘要 briefing、概念解释 explainer、教学步骤 tutorial、复盘 review、方案分析
+- 视觉随笔 visual essay、对话 / 访谈 / 播客转写、交互式学习解释器
+- 任何时候你希望**比 Markdown 更好的阅读载体** —— 表格、SVG、代码、公式、复制 / 导出按钮一条龙
 
----
-
-## 三种运行模式
-
-任何任务的第一步都是跑这个探测脚本：
-
-```bash
-node skills/gpt-image-2/scripts/check-mode.js
-# 想拿结构化结果：
-node skills/gpt-image-2/scripts/check-mode.js --json
-```
-
-输出会判定为以下三种之一：
-
-| 模式 | 触发条件 | 行为 |
-|---|---|---|
-| **A · Garden 本地生图** | `ENABLE_GARDEN_IMAGEGEN` 为真 **且** 有 `OPENAI_API_KEY` | 端到端：选模板 → 渲染 prompt → 调用 `generate.js` / `edit.js` → 图片落盘 |
-| **B · Host-Native 委托宿主出图** | 未启用 Garden，但宿主 Agent 自带图像工具（`image_generation` / `dalle` / `nano_banana` / 图像 MCP 等） | 渲染好 prompt 后**交给宿主自带的图像工具**出图 |
-| **C · Advisor 纯提示词顾问** | 未启用 Garden，宿主也没有图像工具 | 退化成"高质量 prompt 撰写顾问"——把 prompt 落盘到 `garden-gpt-image-2/prompt/`，告诉用户去 ChatGPT / Midjourney / DALL·E / Sora / Nano Banana / 自己的网关里执行 |
-
-三种模式都建议落盘 prompt 文件（A、C 必须，B 推荐），但只有 A 会产出图片文件——B 由宿主决定，C 不可能。
+Skill 本质上是一个**方法论 + 协作 harness**。它附带一个 Vite + React + TypeScript 脚手架，基于 [`reacticle`](https://www.npmjs.com/package/reacticle) 组件协议 —— Agent 不手写裸 HTML / CSS，而是用 prose-first 的语义组件 + 主题约束的 `Raw` 自由层来组合。
 
 ---
 
-## 快速上手
+## 核心思想
 
-### 0. 检测运行模式（永远是第一步）
-
-```bash
-node skills/gpt-image-2/scripts/check-mode.js
-```
-
-下面 1~4 仅在 **Mode A** 下使用。
-
-### 1. 文本生图
-
-```bash
-node skills/gpt-image-2/scripts/generate.js \
-  --prompt "A cute baby sea otter" \
-  --size 1024x1024 \
-  --quality high
-```
-
-### 2. 用提示词文件生图
-
-```bash
-node skills/gpt-image-2/scripts/generate.js \
-  --promptfile garden-gpt-image-2/prompt/poster-20260424-153045.md
-```
-
-### 3. 编辑已有图片
-
-```bash
-node skills/gpt-image-2/scripts/edit.js \
-  --image assets/source.png \
-  --prompt "Replace the background with a clean studio scene"
-```
-
-### 4. 带遮罩的局部编辑
-
-```bash
-node skills/gpt-image-2/scripts/edit.js \
-  --image assets/source.png \
-  --mask  assets/mask.png \
-  --prompt "Replace only the masked area with a glass vase"
-```
-
-Mode B / C 没有 CLI 入口——Skill 只负责把最终 prompt 渲染好，然后交给宿主图像工具（B）或直接呈现给用户（C）。
+- **首先是一篇文章，不是应用** —— 注意力永远在文章。Raw 自由层、SVG、小工具必须服务阅读 / 解释 / 节奏 / 审美，不能喧宾夺主。
+- **Source → Plan → Build → Review 小型 harness** —— 每个项目走 6 个有编号的 phase，中间有 3 个硬 checkpoint。
+- **`reacticle` 组件协议** —— 语义化的 prose 组件（Hero / Lead / Section / Quote / Callout / Image / Formula / CodeBlock / Table …）+ 一个必须用主题 token（`--ra-*`）的 `Raw` 自由层。
+- **主题驱动设计** —— 内置 11 套 authoring profile（`tufte` / `press` / `bayer` / `bodoni` / `vignelli` / `sottsass` / `freddie` / `andy` / `fuller` / `knuth` / `shannon`），每套是给 Agent 看的 Markdown 契约，不是 CSS 文件。
+- **默认 100% 信息保留** —— 文章类型自带推荐保留比例（longform `~100%` / briefing `~50%` / visual-essay `~40%` …），用户可一句话覆盖。
+- **硬协作 checkpoint** —— Plan、首屏样张、最终交付前 Agent 必须停下来；**每个决策必须逐项独立确认，不允许打包一个"全部 OK 吗"**。
+- **默认带封面** —— 一个 3:4 书封式题图位于 TOC 之上，外壳锁死、只能用主题 token、不允许远程图片。
+- **PDF 导出可选** —— 主交付物是一份自包含的 HTML 文件；PDF 只在用户在 Checkpoint 3 主动选择时通过零依赖的 `html-to-pdf.sh` 生成。
 
 ---
 
-## 案例画廊
+## 工作流
 
-公开案例库目前覆盖 18 大类、79 个模板、160+ 个生成 / 编辑结果。这里不是完整索引，而是挑出最能代表能力边界的关键案例：每张缩略图都会跳到线上案例页，图片本身来自独立的 `ConardLi/gpt-image-2-101` 案例仓库。
+```text
+Phase 0  Intake
+   │
+Phase 1  Source → Markdown      （URL / PDF / DOCX / MD / 文本 → source.md）
+   │
+Phase 2  Editorial Planning     （一份 plan.md：Brief / Outline / Theme / Assets）
+   │
+★ Checkpoint 1  Plan            （5 个独立决策逐项确认）
+   │
+Phase 4  First Spread           （封面 + Hero + 第一节 + 一个代表性视觉块）
+   │
+★ Checkpoint 2  First Spread    （验收 + 后续开发模式 A/B）
+   │
+Phase 5  Full Article Build     （单 Agent 顺序 / 多 Agent 并行）
+   │
+Phase 6  Final Review           （Editorial / Visual / Technical 三视角）
+   │
+Phase 7  Repair                 （只允许最小切片修复）
+   │
+★ Checkpoint 3  Delivery        （HTML，或 HTML + PDF，或暂停修订）
+   │
+Phase 8  Delivery               （article.html，可选 article.pdf）
+```
 
-### UI 样机
+每个项目都有自己的工作区目录，作为 Agent 的**长期记忆**：
 
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/ui-mockups%2Flive-commerce-ui%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/ui-mockups/live-commerce-ui/1-thumb.webp" alt="直播带货 UI 案例" width="100%"></a><br/><strong><code>live-commerce-ui</code></strong><br/><sub>明星直播带货界面，含商品、弹幕、礼物和状态层。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/ui-mockups%2Fsocial-interface-mockup%2F3"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/ui-mockups/social-interface-mockup/3-thumb.webp" alt="社交界面样机案例" width="100%"></a><br/><strong><code>social-interface-mockup</code></strong><br/><sub>科技品牌官方账号发布产品更新公告。</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/ui-mockups%2Fproduct-card-overlay%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/ui-mockups/product-card-overlay/1-thumb.webp" alt="产品落地页叠层案例" width="100%"></a><br/><strong><code>product-card-overlay</code></strong><br/><sub>护肤落地页 hero，包含模特、产品和卖点徽章。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/ui-mockups%2Fchat-interface-scene%2F3"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/ui-mockups/chat-interface-scene/3-thumb.webp" alt="聊天界面案例" width="100%"></a><br/><strong><code>chat-interface-scene</code></strong><br/><sub>Claude 风格 AI 助手截图，强调对话层级和结构化回答。</sub></td>
-  </tr>
-</table>
-
-### 产品与品牌
-
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/product-visuals%2Fexploded-view-poster%2F2"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/product-visuals/exploded-view-poster/2-thumb.webp" alt="产品爆炸图案例" width="100%"></a><br/><strong><code>exploded-view-poster</code></strong><br/><sub>Vision Pro 2 光机与算力模块拆解主视觉。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/product-visuals%2Fpremium-studio-product%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/product-visuals/premium-studio-product/1-thumb.webp" alt="高端影棚产品图案例" width="100%"></a><br/><strong><code>premium-studio-product</code></strong><br/><sub>高端护肤静物，适合官网 hero 和杂志跨页。</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/branding-and-packaging%2Fcosmetic-packaging%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/branding-and-packaging/cosmetic-packaging/1-thumb.webp" alt="化妆品包装案例" width="100%"></a><br/><strong><code>cosmetic-packaging</code></strong><br/><sub>国货高端护肤礼盒，兼顾材质和品牌感。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/branding-and-packaging%2Fbeverage-label-design%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/branding-and-packaging/beverage-label-design/1-thumb.webp" alt="饮料标签设计案例" width="100%"></a><br/><strong><code>beverage-label-design</code></strong><br/><sub>国潮气泡水酒标 / 瓶标与商拍场景。</sub></td>
-  </tr>
-</table>
-
-### 图像编辑工作流
-
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/editing-workflows%2Fbackground-replacement%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/editing-workflows/background-replacement/1-thumb.webp" alt="背景替换案例" width="100%"></a><br/><strong><code>background-replacement</code></strong><br/><sub>把日间人像替换到时代广场夜景并重新布光。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/editing-workflows%2Fobject-removal%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/editing-workflows/object-removal/1-thumb.webp" alt="杂物去除案例" width="100%"></a><br/><strong><code>object-removal</code></strong><br/><sub>毕业合影去除边缘误入人物并修补背景。</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/editing-workflows%2Fproduct-retouching%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/editing-workflows/product-retouching/1-thumb.webp" alt="产品精修案例" width="100%"></a><br/><strong><code>product-retouching</code></strong><br/><sub>AirPods 电商主图质感、边缘与标签锐化。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/editing-workflows%2Fportrait-local-edit%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/editing-workflows/portrait-local-edit/1-thumb.webp" alt="人像局部编辑案例" width="100%"></a><br/><strong><code>portrait-local-edit</code></strong><br/><sub>在保留身份的前提下调整发色与发型。</sub></td>
-  </tr>
-</table>
-
-### 信息图与视觉文档
-
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/infographics%2Fbento-grid-infographic%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/infographics/bento-grid-infographic/1-thumb.webp" alt="便当格信息图案例" width="100%"></a><br/><strong><code>bento-grid-infographic</code></strong><br/><sub>iPhone 16 Pro 功能拆解，以便当格组织高密度信息。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/infographics%2Fcomparison-infographic%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/infographics/comparison-infographic/1-thumb.webp" alt="对比信息图案例" width="100%"></a><br/><strong><code>comparison-infographic</code></strong><br/><sub>手机选购对比图，围绕决策维度组织信息。</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/slides-and-visual-docs%2Fdense-explainer-slides%2F2"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/slides-and-visual-docs/dense-explainer-slides/2-thumb.webp" alt="高密度讲解单页案例" width="100%"></a><br/><strong><code>dense-explainer-slides</code></strong><br/><sub>AI Agent 工作机制一页讲清，适合技术培训。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/slides-and-visual-docs%2Fvisual-report-page%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/slides-and-visual-docs/visual-report-page/1-thumb.webp" alt="视觉报告页案例" width="100%"></a><br/><strong><code>visual-report-page</code></strong><br/><sub>商业执行摘要页，结合 KPI 卡片与趋势图节奏。</sub></td>
-  </tr>
-</table>
-
-### 学术与技术图
-
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/academic-figures%2Fmethod-pipeline-overview%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/academic-figures/method-pipeline-overview/1-thumb.webp" alt="方法流程图案例" width="100%"></a><br/><strong><code>method-pipeline-overview</code></strong><br/><sub>RAG 长上下文问答方法流程，适合论文 overview。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/academic-figures%2Fneural-network-architecture%2F2"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/academic-figures/neural-network-architecture/2-thumb.webp" alt="神经网络架构图案例" width="100%"></a><br/><strong><code>neural-network-architecture</code></strong><br/><sub>ViT-B/16 架构图，包含 Patch Embedding 与张量流向。</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/technical-diagrams%2Fsystem-architecture%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/technical-diagrams/system-architecture/1-thumb.webp" alt="系统架构图案例" width="100%"></a><br/><strong><code>system-architecture</code></strong><br/><sub>多租户 AI 客服 SaaS 生产架构总览。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/technical-diagrams%2Fsequence-diagram%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/technical-diagrams/sequence-diagram/1-thumb.webp" alt="时序图案例" width="100%"></a><br/><strong><code>sequence-diagram</code></strong><br/><sub>OAuth 2.0 授权码 + PKCE 标准时序。</sub></td>
-  </tr>
-</table>
-
-### 故事、地图与角色
-
-<table>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/storyboards-and-sequences%2Fanime-key-visual%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/storyboards-and-sequences/anime-key-visual/1-thumb.webp" alt="动漫主视觉案例" width="100%"></a><br/><strong><code>anime-key-visual</code></strong><br/><sub>东方幻想游戏首发 KV，兼顾多比例裁切。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/maps%2Ffood-map%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/maps/food-map/1-thumb.webp" alt="美食地图案例" width="100%"></a><br/><strong><code>food-map</code></strong><br/><sub>上海武康路 City Walk 美食地图，带插画地标。</sub></td>
-  </tr>
-  <tr>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/maps%2Ftravel-route-map%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/maps/travel-route-map/1-thumb.webp" alt="旅行路线图案例" width="100%"></a><br/><strong><code>travel-route-map</code></strong><br/><sub>京都三日慢走路线图，带站点插画与路线节奏。</sub></td>
-    <td width="50%" align="center"><a href="https://gpt-image2.mmh1.top/#/case/portraits-and-characters%2Fprofessional-portrait%2F1"><img src="https://cdn.jsdelivr.net/gh/ConardLi/gpt-image-2-101@main/public/case/portraits-and-characters/professional-portrait/1-thumb.webp" alt="职业肖像案例" width="100%"></a><br/><strong><code>professional-portrait</code></strong><br/><sub>克制的企业领袖肖像，适合官网 About 与媒体页。</sub></td>
-  </tr>
-</table>
-
-<sub>完整案例库：<a href="https://gpt-image2.mmh1.top/#/case"><b>线上案例浏览器</b></a> · <a href="https://github.com/ConardLi/gpt-image-2-101/tree/main/public/case">案例资源仓库</a> · 本地索引 <code>website/gpt-image2-website/public/case/INDEX.md</code>。</sub>
+```text
+<workspace>/
+  source/   original.*   source.md   source.<lang>.md（需翻译时）   extraction-notes.md
+  plan/     plan.md
+  article/  Cover.tsx   Article.tsx   sections/   raw-blocks/   assets/   article.html（产物）
+  review/   first-spread-review.md   final-review.md
+            （source-review.md 仅复杂源；repair-log.md 仅有修复时）
+  index.html  package.json  vite.config.ts  tsconfig*.json   （构建工装）
+```
 
 ---
 
-## Skill 结构
+## Skill 目录结构
 
-```
-skills/gpt-image-2/
-├── SKILL.md                       主技能定义
+```text
+skills/beautiful-article/
+├── SKILL.md                            主 Skill 文件（frontmatter name: beautiful-article）
+├── manifest.json                       发布清单
+├── README.md  /  README.zh-CN.md       本文档
+├── references/
+│   ├── article-types.md                文章类型路由
+│   ├── article-types/                  briefing / dialogue / essay / explainer / full-report
+│   │                                    interactive-explainer / longform / review / tutorial / visual-essay
+│   ├── information-density.md          保留比例与组件 / 视觉比例的关系
+│   ├── plan-template.md                单一 plan.md 模板（Brief / Outline / Theme / Assets）
+│   ├── theme-selection.md              主题选择，density 与 theme 解耦
+│   ├── layout.md                       版式宽度、TOC 默认值
+│   ├── cover.md                        3:4 书封封面指南（5 条自检 + 5 个构图模板）
+│   ├── asset-policy.md                 配图策略（none / user-assets / placeholders / ai-generated）
+│   ├── component-policy.md             Reacticle 组件契约、prose-first
+│   ├── raw-policy.md                   Raw 允许 / 禁止表、token 驱动、自检
+│   ├── section-build.md                一节一文件铁律、subagent prompt 模板
+│   ├── source-to-markdown.md           各类输入抽取规则 + 5 条自检
+│   ├── scaffold.md                     脚手架行为、工作区结构
+│   ├── html-output.md                  dev / build / 单文件 HTML 命令
+│   ├── pdf-output.md                   html-to-pdf.sh 用法 + print CSS 覆盖
+│   ├── review-checklist.md             各阶段 reviewer 清单与 sub-agent prompt
+│   ├── repair-policy.md                最小切片修复对照表
+│   └── harness.md                      Skill-as-harness 视角
+├── theme-profiles/
+│   ├── index.json                      主题注册表
+│   └── andy / bayer / bodoni / freddie / fuller / knuth / press / shannon / sottsass / tufte / vignelli
 ├── scripts/
-│   ├── check-mode.js              模式 A/B/C 探测器（先跑这个）
-│   ├── generate.js                文本生图（仅 Mode A）
-│   ├── edit.js                    图像编辑 / 局部编辑（仅 Mode A）
-│   ├── shared.js                  共享请求 / 落盘 / 环境变量解析
-│   └── package.json
-└── references/
-    ├── prompt-writing.md          方法论：模板怎么设计、缺字段怎么问
-    ├── ui-mockups/                直播带货、社交、产品卡、聊天、短视频封面
-    ├── product-visuals/           爆炸图、纯白底、影棚、包装、生活方式
-    ├── infographics/              信息图
-    ├── poster-and-campaigns/      品牌主海报、Campaign KV、banner、杂志封面
-    ├── slides-and-visual-docs/    高密度讲解、政策风、商业报告、教学示意
-    ├── portraits-and-characters/  职业肖像、创始人肖像、虚拟主播、角色设定
-    ├── scenes-and-illustrations/  治愈系、概念大场景、绘本、极简留白
-    ├── editing-workflows/         背景替换、局部替换、去除、产品精修、人像编辑
-    ├── avatars-and-profile/       风格化自拍、角色网格、3D 图标、贴纸、文化系列
-    ├── storyboards-and-sequences/ 4 格漫画、漫画分镜、动漫 KV、角色关系图、流程图
-    ├── grids-and-collages/        2×2 banner、lookbook、混风格拼贴、动漫 pitch board
-    ├── branding-and-packaging/    品牌识别系统、吉祥物、化妆品包装、饮料标签
-    ├── typography-and-text-layout/ 大字海报、双语版式
-    ├── assets-and-props/          拟物图标、游戏截图样机
-    ├── academic-figures/          方法 pipeline、神经网络架构、定性对比
-    ├── technical-diagrams/        架构图、流程图、时序图
-    └── maps/                      美食地图、旅行路线图、城市插画、门店分布
+│   ├── scaffold.sh                     一键创建工作区
+│   ├── html-to-pdf.sh                  可选 HTML → PDF（headless 浏览器，零 npm 依赖）
+│   ├── pdf-print-overrides.css         注入 HTML 的 @media print 覆盖
+│   ├── source-to-markdown-markitdown.py  主路径抽取（PDF / DOCX / HTML）
+│   └── source-to-markdown.py           轻量 fallback（Markdown / TXT / 简单 HTML）
+└── assets/
+    └── scaffold-template/              脚手架脚本拷贝的 Vite + React + TS 模板
 ```
 
 ---
 
-## 环境变量
+## 它是怎么工作的（要点）
 
-按以下顺序读取：CLI 参数 → `process.env` → `<cwd>/.env` → `<cwd>/.gateway.env` → `~/.gateway.env`。
+### 1. 各节点的质检协议
 
-| 变量 | 必需性 | 说明 |
+不同 phase 用不同的质检方式 —— 滥开 SubAgent、滥写 review 文件是首要性能问题，所以 Skill 把规则写明：
+
+| 节点 | 怎么检 | 产物 |
 |---|---|---|
-| `ENABLE_GARDEN_IMAGEGEN` | Mode A 必需 | 模式开关：`1` / `true` / `yes` / `on` 启用 Mode A |
-| `OPENAI_API_KEY` | Mode A 必需 | 真正调图像 API 用 |
-| `OPENAI_BASE_URL` | 可选 | 默认 `https://api.openai.com/v1`，可指向任意 OpenAI 兼容网关 |
-| `OPENAI_IMAGE_MODEL` | 可选 | 默认 `gpt-image-2`，也可换成 `gpt-image-1` / `dall-e-3` 等 |
+| Phase 1 Source（默认） | 主 Agent 内联 5 条 checklist | 无文件 |
+| Phase 1 Source（仅复杂 / 低置信源） | Source Reviewer SubAgent（对照 `original.*` diff） | `review/source-review.md` |
+| Phase 2 Plan / Checkpoint 1 前 | **主 Agent 内联自查（禁开 SubAgent、禁写文件）** | 无文件 |
+| Phase 4 First Spread / Checkpoint 2 前 | First Spread Reviewer SubAgent | `review/first-spread-review.md` |
+| Phase 5 每个 Section | Section Reviewer SubAgent —— 以消息返回 pass/fail | 无（不写每节文件） |
+| Phase 6 终审 / Checkpoint 3 前 | Editorial + Visual + Technical Reviewer SubAgent | `review/final-review.md` |
 
-默认实现严格按 OpenAI 兼容接口工作，**不绑定**任何第三方网关。
+### 2. 禁止静默替用户选择
+
+每个 Checkpoint 的每一项决策必须**独立**问 —— Agent 可以推荐，但不能"我已经替你定了 X，不对再说"。Plan Checkpoint 5 项独立决策：文章类型（含推荐保留比例）/ 主题 / 版式宽度 / 配图模式 / 封面开关。
+
+### 3. 文章类型 → 保留比例打包
+
+10 种文章类型都自带推荐保留比例：`longform · ~100%` / `tutorial · ~90%` / `full-report · ~80%` / `explainer · ~80%` / `dialogue · ~80%` / `review · ~70%` / `essay · ~70%` / `briefing · ~50%` / `visual-essay · ~40%` / `interactive-explainer · ~25% 摘录 + 75% AI 重构`。用户可一句话覆盖。
+
+### 4. 一节一文件铁律
+
+每个 Section 都是 `article/sections/NN-*.tsx` 单文件组件。`Article.tsx` 只是 assembler —— 由主 Agent 拥有，负责 import 与排序、跑 typecheck / build、解决主题漂移。这是后续多 Agent 并行的前提。
+
+### 5. 全程主题 token
+
+`Raw` 块必须只用 `--ra-*` 主题 token —— 不允许野生颜色 / 字体。换主题时所有 Raw 块一处生效。每个主题都有一份 Markdown authoring profile，告诉 Agent 在该主题下怎么写、怎么排版。
 
 ---
 
-## 输出约定
+## 创建一个项目
 
-如果用户没有明确指定输出路径：
+Skill 不预先创建工作区 —— 每个项目自己开。来自 Phase 4 的命令：
 
-| 内容 | 落盘位置 | 适用模式 |
-|---|---|---|
-| 渲染好的 prompt | `garden-gpt-image-2/prompt/<task-slug>-<timestamp>.md` | A / B / C |
-| 生成的图片 | `garden-gpt-image-2/image/<task-slug>-<timestamp>.png` | 仅 A（B 由宿主决定，C 不产出） |
+```bash
+# 默认开封面
+bash <path-to-skill>/scripts/scaffold.sh ./my-article --theme=tufte
 
-`<task-slug>` 由用户请求自动派生，`<timestamp>` 是 `YYYYMMDD-HHMMSS`。
+# 关闭封面
+bash <path-to-skill>/scripts/scaffold.sh ./my-article --theme=press --no-cover
 
-示例：
+# 查看可用主题
+bash <path-to-skill>/scripts/scaffold.sh --list-themes
+```
 
-- `garden-gpt-image-2/prompt/live-commerce-ui-20260424-153045.md`
-- `garden-gpt-image-2/image/vr-headset-exploded-view-20260424-153102.png`
+脚手架会拉起 Vite + React + TS 工作区，从 npm 装最新 `reacticle`，并放好 `source/ plan/ review/` 三个目录 + `article/Article.tsx` / `article/Cover.tsx` / `article/sections/01-opening.tsx` 三份起点文件。
+
+Phase 5 完成后 Agent 跑构建产出单文件 HTML：
+
+```bash
+npm run build           # → article/article.html（CSS + JS 全内联）
+```
+
+可选 PDF 导出（仅当 Checkpoint 3 用户选了 HTML + PDF）：
+
+```bash
+bash <path-to-skill>/scripts/html-to-pdf.sh
+```
 
 ---
 
-## 设计原则
+## 最佳实践
 
-1. **先判模式，再干活。** 不会因为宿主没 API key 就静默失败，而是优雅地降级到 B / C 并明确告知用户当前状态。
-2. **模板优于自由提示。** 18 大类预校验过的结构化模板，带显式 `{argument ...}` 参数槽和 `default` 标记，质量远高于"你说说想要啥"。
-3. **精确提问，不要笼统提问。** 模板字段缺失时按字段精确问（"主播是谁？真人照片 / 名人名字 / 自由描述 / 随机生成？"），不要笼统问"想要什么风格"。
-4. **永远归档 prompt。** 即使在顾问模式，渲染好的 prompt 也会落盘，方便复用。
-5. **默认 OpenAI 兼容。** 不锁定任何特定网关。
+### 推荐
+
+1. **先定文章类型** —— 它的保留比例锚定整个 plan。
+2. **信任 harness 的 phase** —— 不要因为"答案显而易见"就跳过 Plan checkpoint。
+3. **Raw 块只用主题 token** —— `--ra-*`，禁止裸颜色 / 字体名。
+4. **一节一文件** —— 哪怕这一节很短，也要隔离。review 与修复阶段会回报这点投入。
+5. **封面要呼应主题 + 文章主旨** —— 不是一个占位渐变。
+
+### 避免
+
+1. ❌ 把 Skill 当成"帮我做个 HTML 页面" —— 交付物是**文章**。
+2. ❌ 把多个 Checkpoint 决策打包成一个 yes/no。
+3. ❌ Raw 块自带颜色 / 字体（主题漂移）。
+4. ❌ 把所有 Section 都写进 `Article.tsx`（杀死 sub-agent 并行）。
+5. ❌ 删除 colophon / 封面外壳（这些是契约的一部分）。
+
+---
+
+## 常见问题
+
+**Q1：什么时候不应该用这个 Skill？**
+当用户其实想要的是网页应用 / dashboard / 表单 / 原型 / 通用 landing page —— 这些去找 `web-design-engineer`，不是这里。不确定时 Skill 会停下来澄清，而不是默默生成错的产物。
+
+**Q2：是不是总是 100% 信息保留？**
+不是 —— 那只是 `longform` 类型的默认值。文章类型决定推荐比例，用户可以在 Checkpoint 1 覆盖。
+
+**Q3：文章语言可以与源材料不同吗？**
+可以。如果用户指定的目标语言与源不一致，Phase 1 会先产出地道翻译版 `source/source.<lang>.md`，Phase 2+ 据此编写。
+
+**Q4：如果 Agent 运行时没有 SubAgent / Task 工具怎么办？**
+Skill 显式照顾了这种情况：主 Agent 兜底承担 SubAgent 的工作，并在 review 文件首注明"无 SubAgent 环境，主 Agent 兜底"。
+
+**Q5：为什么用 React + Vite + reacticle 而不是裸 HTML？**
+因为 Agent 需要一个稳定的、prose-first 的组件契约 —— 它要扛住多 Section 并行写作、主题切换、Raw 自由层这些场景。`npm run build` 时所有依赖会全部内联回单文件 HTML 交付。
+
+---
+
+## 工具要求
+
+Skill 假设 Agent 运行时可以：
+
+- 启动 shell 命令（用于 `scaffold.sh` / `html-to-pdf.sh` / `npm` 构建）
+- 在工作区读写文件
+- （可选）开启 sub-agent 来跑 First Spread / Section / Final review
+- （可选）调用 `MarkItDown`（Python）做高保真 PDF / DOCX / HTML 抽取；不可用时由轻量 fallback 脚本处理 Markdown / TXT / 简单 HTML
 
 ---
 

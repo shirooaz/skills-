@@ -1,9 +1,9 @@
 {
-  "name": "gpt-image-2",
-  "version": "1.0.4",
-  "category": "Image Generation / Prompt Engineering",
-  "description": "Focused image generation and editing skill for GPT Image 2 and OpenAI-compatible image APIs. Supports three runtime modes — Garden local, host-native delegation, and advisor-only — with 18 visual categories and 80+ structured prompt templates.",
-  "homepage": "https://github.com/ConardLi/garden-skills/tree/main/skills/gpt-image-2",
+  "name": "beautiful-article",
+  "version": "0.1.0",
+  "category": "Editorial · Any source → beautiful article",
+  "description": "Edit and design any source material (URL / PDF / DOCX / Markdown / plain text / screenshots / pasted notes) into a beautiful, share-ready article. Built on the reacticle component protocol with a theme-constrained Raw layer; runs a small source -> plan -> double-confirmation -> build -> final review -> repair harness, defaulting to 100% information retention long-form articles.",
+  "homepage": "https://github.com/ConardLi/garden-skills/tree/main/skills/beautiful-article",
   "compat": [
     "claude-code",
     "claude-ai",
