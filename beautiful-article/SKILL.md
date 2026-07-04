@@ -1,466 +1,499 @@
 ---
-name: beautiful-article
-description: "把用户提供的素材（网页 URL / PDF / DOCX / Markdown / 纯文本 / 截图 / 粘贴材料）编辑、设计成一篇美丽的、可离线打开和分享的**单文件 HTML 网页文章**。基于 reacticle 组件协议：不手写裸 HTML/CSS，而用语义组件 + 受主题约束的 Raw 自由层；按 source→规划→双确认→生成→终审→修复的小型 harness 流程推进，默认 100% 信息保留的长文。触发场景：把 URL/PDF/DOCX/文章做成网页文章 / 长文 / briefing / 解释文 / 视觉文章 / 教程 / 审阅复盘 / 方案分析，'render this as a beautiful web article / 把这篇做成网页文章 / 生成一篇可分享的 HTML 长文 / reacticle 文章'。只生成文章，不生成后台、表单、dashboard、产品原型或通用 Web App。"
+name: gpt-image-2
+description: 面向 GPT Image 2 的图像生成 / 编辑技能。可在 3 种环境下使用：(A) Garden 本地模式，通过 OpenAI 兼容接口直接出图并落盘；(B) Host-Native 模式，把本 Skill 当作提示词工程指引，把渲染好的 prompt 交给宿主 Agent 自带的图像工具出图；(C) Advisor 模式，宿主无任何图像工具时退化为高质量 prompt 顾问。涵盖 18 大类、80+ 个结构化模板，覆盖海报 / UI / 产品 / 信息图 / 学术图 / 技术架构图 / 漫画 / 头像 / 流程板 / 电影分镜 / IP 周边 / 编辑工作流等场景。
 ---
 
-# Beautiful Article
+# GPT Image 2
 
-## 背景原则
+这是一个面向 GPT Image 2 的聚焦型技能，在 3 种运行环境下都能用，但行为差异显著。**第一步必须先确定当前运行模式**。
 
-AI 生成内容越复杂，输出媒介越重要。HTML 的价值在于同时提升信息密度、视觉清晰度、分享便利性和交互能力：表格、SVG、CSS、代码片段、可调控件、复制与导出按钮，可以让读者不只是“看完”，而是能比较、定位、调整、复查和继续使用。Beautiful Article 的目的，是把原本枯燥、线性、难以消化的文字材料，转换成视觉体验更漂亮、阅读节奏更清晰、也更容易审阅和分享的单文件网页文章。
+它只做两类图像任务：
 
+- 生成图片：`POST /images/generations`
+- 编辑图片：`POST /images/edits`
 
-## 边界（先判断要不要进这个 Skill）
+本文件保留：运行模式、技能结构、环境变量、保存 / 命名规则、模板索引、模式感知工作流。详细模板全部放在 `references/`，分层组织：
 
-- 最终主产物是 **single HTML 文章**，不是网页应用。
-- 文章可以有 `Raw` 自由层（任意 HTML / CSS / JS / React：交互、布局排版、动效、小工具、
-  按需的 SVG / canvas 图解），但**必须服务阅读、解释、论证、节奏或审美**。
-- **不**生成：后台、表单、拖拽工作台、完整 dashboard、产品原型、通用 Web App。
-- 信息密度由用户确认；**默认保留 100% 信息**，生成长文式网页文章。
+- 一级：分类目录
+- 二级：单模板 Markdown 文件
 
-如果用户要的是应用而不是文章，停下来澄清，不要进入本 Skill。
+## 运行模式（必读，做任何事之前先确定）
 
----
-
-## 工作流总览
-
-```
-Phase 0  Intake            判断是否进入本 Skill + 初步文章类型
-   ▼
-Phase 1  Source → Markdown URL/PDF/DOCX/MD/文本 → source.md + extraction-notes.md
-         └ 主 Agent 内联 5 条 checklist 自查（仅复杂/低置信源升级 SubAgent）
-   ▼
-Phase 2  Editorial Planning 一份 plan.md（Brief / Outline / Theme / Assets 四段）
-         └ 主 Agent 内联自查（无 SubAgent、无 review 文件）
-   ▼
-Phase 3  Plan Checkpoint   ★Checkpoint 1 必须停。逐项确认 5 件事：文章类型（含标配保留比例）/ 主题 / 版式 / 配图模式 / 封面
-   ▼
-Phase 4  First Spread      首屏 + 第一节 + 一个代表性视觉块（脚手架在此创建）
-         └ First Spread Reviewer SubAgent（写 review/first-spread-review.md）
-         └ ★Checkpoint 2 必须停。逐项确认 2 件事：验收结论 / 开发模式 A/B
-   ▼
-Phase 5  Full Article Build 生成完整网页文章（默认单 Agent，超长可按 Section 隔离）
-         └ Section Reviewer SubAgent（以消息返回 pass/fail，无须写 review 文件）
-   ▼
-Phase 6  Final Review      Editorial / Visual / Technical 三视角终审（写 review/final-review.md）
-   ▼
-Phase 7  Repair            最小切片修复，有修复才写 repair-log.md
-   ▼
-Phase 8  Delivery          ★Checkpoint 3 必须停。逐项确认交付决策 → 交付 article.html + 简短编辑说明
-```
-
-工作区结构（脚手架创建；这些文件是 Skill 的长期记忆，**不要只依赖聊天上下文记决策**）：
-
-```text
-<workspace>/
-  source/   original.*  source.md  source.<lang>.md(需翻译时)  extraction-notes.md
-  plan/     plan.md                                    # 单一规划文件：Brief / Outline / Theme / Assets 四段
-  article/  Cover.tsx(默认)  Article.tsx  sections/  raw-blocks/  assets/  article.html(产物)
-  review/   first-spread-review.md  final-review.md   # 仅这两份是常规产物
-            source-review.md(仅复杂源)  repair-log.md(仅有修复时)
-  index.html  package.json  vite.config.ts  tsconfig*.json   (构建工装)
-```
-
----
-
-## 硬性质检协议（贯穿整个 Skill）
-
-**质检方式按节点区分 —— 不是所有质检都要开 SubAgent，也不是所有质检都要写文件。**
-误开 SubAgent / 误写文件是首要性能问题，按下表严格执行：
-
-| 节点 | 质检方式 | 产物 | 为什么 |
-|---|---|---|---|
-| **Phase 1 Source（默认）** | 主 Agent 内联 5 条 checklist | 无文件 | 主 Agent 反正要通读 source.md |
-| Phase 1 Source（仅复杂/低置信源） | Source Reviewer SubAgent（对照 `original.*` diff） | `review/source-review.md` | 静默丢失只能 diff 抓到 |
-| **Phase 2 Plan / Checkpoint 1 前** | **主 Agent 内联自查（禁止开 SubAgent）** | **无文件** | plan 是文字决策且 200-400 行，上下文是热的，SubAgent 冷启反而更慢 |
-| **Phase 4 First Spread / Checkpoint 2 前** | First Spread Reviewer SubAgent | `review/first-spread-review.md` | 首屏定调，多一道独立眼睛更稳 |
-| **Phase 5 每个 Section** | Section Reviewer SubAgent | **以消息返回 pass/fail + 修复点（不写文件）** | 一篇可能 5-15 节，N 份 review 文件无人再读 |
-| **Phase 6 终审 / Checkpoint 3 前** | Editorial + Visual + Technical Reviewer SubAgent | `review/final-review.md` | 交付物的一部分，留档有价值 |
-
-**铁律：**
-
-1. **Plan Checkpoint（Phase 2 → Checkpoint 1）严禁开 SubAgent 做质检**。主 Agent 写完 plan.md
-   后**就地**对照 5 条清单（见 `references/review-checklist.md` 的 Plan 自查段）核查、按结论
-   改完 `plan/plan.md`，**不要写任何 review 文件**，然后进入 Checkpoint 1。
-2. First Spread / Final 必须用 SubAgent（这两个节点 SubAgent 价值 > 开销）；只有探测不到
-   SubAgent 环境才由主 Agent 兜底，并在文件首注明"无 SubAgent 环境，主 Agent 兜底"。
-3. Section Reviewer 用 SubAgent，但**返回值是消息**（pass / fail + 修复点）；fail 项主 Agent
-   收到后直接修，**不要让 SubAgent 写 `review/section-NN-review.md` 文件**。
-4. 拿到任何质检结论 —— **先按 fail 项把产出改完，再汇报"做完了 + 自检结论 + 改了什么"**。
-   直接拿原始结论汇报但不修复 = 违规。
-5. **决策收集铁律 · 禁止静默替用户选择**：在每个 Checkpoint（1 / 2 / 3），所有需要用户确认的
-   决策项**必须每项独立列出 + 等用户答复**。Agent **可以推荐**（"我推荐 X，因为 …"），但
-   **不能"已经替你定了 X，如果不对再说"** —— 这等于剥夺选择机会。
-   - **优先**：如果环境有 `AskQuestion` 工具，每个决策项作为一个独立 question（一次调用可
-     传多个 question），用户能用选择卡逐项确认。
-   - **否则**：停下来在消息里把所有问题**编号列出**（每个问题独占一段、写清推荐项 + 理由 +
-     备选项），明确说"我等你逐项答复后再继续"，**不要继续做任何后续工作**。
-   - **绝不**：把多项决策打包成一个"全选我推荐的 / 全部 OK 吗？"yes/no 问题；也不要在
-     "推荐一句话"后默认直接进下一步。
-
-各节点的 checklist 与 SubAgent prompt 模板见 `references/review-checklist.md`。
-
----
-
-## 各阶段文件读取指南（渐进加载，别一次全读）
-
-| 阶段 | 必读 | 按需查 |
-|---|---|---|
-| Phase 0 Intake | `references/harness.md` | —— |
-| Phase 1 Source→MD | `references/source-to-markdown.md` | `scripts/source-to-markdown-markitdown.py` · `scripts/source-to-markdown.py` |
-| Phase 2 Planning | `references/article-types.md` · `references/information-density.md` · `references/plan-template.md` · `references/theme-selection.md` · `references/layout.md` · `references/asset-policy.md` · `references/cover.md`（封面构图想法） | `references/article-types/<type>.md` · `theme-profiles/*.md` |
-| Phase 4 First Spread / Phase 5 Build（每节回看） | `references/section-build.md` · `references/component-policy.md` · `references/raw-policy.md` · 选定主题 `theme-profiles/<id>.md` · **封面：`references/cover.md`** | `references/scaffold.md`（建项目时一次）· `references/html-output.md` |
-| Phase 6/7 Review & Repair | `references/review-checklist.md` · `references/repair-policy.md` | —— |
-| Phase 8 Delivery | `references/html-output.md` | `references/pdf-output.md`（仅当用户选 PDF 导出） |
-
-> **长会话里 agent 容易遗忘原则** —— Phase 5 会重复实现 N 个 Section，**每次开工
-> 前回看** `component-policy.md` + `raw-policy.md` + 当前主题 `theme-profiles/<id>.md`。
-
----
-
-## Phase 0 —— Intake
-
-判断是否进入本 Skill，给出初步文章类型与输出模式（默认 single HTML）。
-
-| 用户给的东西 | 该做的 |
-|---|---|
-| 一个或多个素材（URL/PDF/DOCX/MD/文本/截图） | 进入 Phase 1 |
-| 只说"帮我做篇 X 文章"但没素材 | **反问**：先要素材或大纲。Skill 不替用户凭空构思内容 |
-| 明显要的是应用 / 工具 / dashboard | 停下来澄清，不进入本 Skill |
-
-**捕获目标语言**：开场就记录用户**期望的最终文章语言**（如用户提到"用中文/做成英文版"等）。
-
-- **用户指定了语言** → 记进 `plan/plan.md` Brief 段的"目标语言"。若与源材料语言不一致，Phase 1
-  需先产出一份**地道翻译版**源文，后续基于翻译版编写（见 Phase 1）。
-- **用户未指定** → 默认**最终文章语言跟随源材料语言**，不做翻译。
-
-自检：用户要的是**文章**还是**网页应用**？是否需要完整信息？是否要先索取更多素材？
-**用户有没有指定最终语言？与源语言是否一致？**
-
----
-
-## Phase 1 —— Source → Markdown
-
-把任意输入统一成 `source/source.md`，把不确定项写进 `source/extraction-notes.md`。
-规则与各类输入处理见 `references/source-to-markdown.md`；可借助
-MarkItDown 主路径或轻量 fallback 脚本做 PDF/DOCX/HTML 抽取。
-
-落盘后由**主 Agent 内联自查**（`references/source-to-markdown.md` 的 5 条 checklist），按结论修复
-再进入 Phase 2；**仅当 `extraction-notes.md` 标记低置信 / 复杂源**时，才升级为独立 Source Reviewer
-SubAgent 并对照 `original.*` 做 diff 式核查（写 `review/source-review.md`）。
-
-**语言处理（紧接抽取之后）**：判断 `source.md` 的语言。
-
-- 用户**未指定**目标语言，或目标语言**与源一致** → 不翻译，后续直接基于 `source.md` 编写，
-  最终文章语言 = 源语言。
-- 用户**指定**了目标语言且**与源不一致** → 先产出**地道翻译版** `source/source.<lang>.md`
-  （如 `source.zh.md` / `source.en.md`），作为后续 Phase 2+ 的**事实底座**；原文 `source.md` 保留
-  备查。翻译要求：**用地道的目标语言、去除翻译腔**（按目标语言的表达习惯重组句子，不逐字直译，
-  不留生硬的外语语序 / 被动堆叠 / 异国标点），术语 / 数字 / 代码 / 公式 / 引用保持准确，结构与
-  信息保留比例不变。翻译说明写进 `extraction-notes.md`。
-
----
-
-## Phase 2 —— Editorial Planning
-
-形成编辑方案，**不直接写 HTML**。**只产出一份 `plan/plan.md`**（四段：Brief / Outline /
-Theme / Assets），模板见 `references/plan-template.md`：
-
-- **Brief**：目标读者 / 文章类型 / 信息保留比例 / 必须保留 / 可删减 / 语气 / 主要观点 /
-  阅读目标 / 目标语言 / 版式宽度 / TOC / 配图策略。
-- **Outline**：Hero / Lead / Summary / Section 列表 / 每节保留哪些信息 / 每节是否需要
-  Raw·Table·CodeBlock·Formula·Image / 结尾方式。
-- **Theme**：选定主题 + 理由 + 冲突说明（见 `references/theme-selection.md`）。
-- **Assets**：配图策略与逐图计划（见 `references/asset-policy.md`；`none` 模式下本段
-  写一句话即可）。
-
-文章类型路由见 `references/article-types.md`；信息密度与组件比例见
-`references/information-density.md`。
-
-**自检方式 · 强约束**：写完 `plan/plan.md` 后由**主 Agent 内联**对照 5 条 Plan 自查清单核查
-（见 `references/review-checklist.md` 的 Plan 自查段），按结论改完 `plan/plan.md`，**直接进入
-Checkpoint 1，禁止开 SubAgent，禁止写 `review/plan-review.md`**。
-
----
-
-## Phase 3 —— Plan Checkpoint（★硬节点 · Checkpoint 1，必须停）
-
-**铁律：禁止静默替用户选择。每个决策项必须独立列出、独立等用户答复。**
-
-可以推荐（"我推荐 X，因为 …"），**不能**说"已经替你定了 X，如果不对告诉我"——后者等于把
-默认值偷渡过去、剥夺选择机会。
-
-**收集方式（按环境二选一）：**
-
-- **优先 `AskQuestion` 工具**：每项作为一个独立 question 传入（一次调用可传多个 question），
-  用户用选择卡逐项确认。
-- **无 `AskQuestion` 工具**：停下来在消息里把每个问题**编号列出 + 独占一段 + 写清推荐项 + 理由
-  + 备选项**，明确说"我等你逐项答复后再继续"，**不要继续做任何后续工作**。
-
-无论哪种方式：每个**独立决策**对应**一个独立问题**，**不要打包成"全部 OK 吗？" yes/no**。
-
-**必须独立确认的 5 项**（缺一不可）：
-
-| # | 决策项 | 选项（语义化标签 · 含标配信息保留比例） | 备注 |
-|---|---|---|---|
-| 1 | **文章类型**（信息保留比例打包在内） | 完整长文 / 归档 `longform · ~100%` ／ 研究报告 / 正式分析 `full-report · ~80%` ／ 教学步骤 / 上手指南 `tutorial · ~90%` ／ 概念 / 系统解释 `explainer · ~80%` ／ 对话 / 访谈 / 播客 `dialogue · ~80%` ／ PR / 方案 / 事故审阅 `review · ~70%` ／ 观点 / 评论 / 叙事 `essay · ~70%` ／ 交互式学习 / 玩明白一个概念 `interactive-explainer · ~25% 原文摘录 + 75% AI 重构` ／ 决策摘要 / 给忙人看 `briefing · ~50%` ／ 图文为主 / 传播展示 `visual-essay · ~40%` | AI 推荐一个并写一句理由。**比例已绑进类型选项**，不再单独成题（否则会出现 `longform + 20%` 这种伪组合）。用户想偏离标配，用自由文本一句话覆盖（"我要 longform + 60%"），见下方"如何偏离标配" |
-| 2 | **主题** | tufte / press / 其它已注册主题（读 `theme-profiles/index.json`） | AI 推荐一个并写一句理由 |
-| 3 | **版式宽度** | narrow / regular / wide / full | AI 推荐一个；默认 `regular` |
-| 4 | **配图模式**（必选 · 不允许"默认通过"） | none / user-assets / placeholders / ai-generated | 一句话"只决定是否使用外部 `Image`；`Raw` 不受影响" |
-| 5 | **封面**（3:4 书封式题图，位于 TOC + 正文之上） | 开（默认） / 关 | AI 推荐"开"，并给一句构图想法（哪种主视觉 + 选哪个封面模板 A/B/C/D/E）。`briefing` / `dialogue` 可推荐"关"。详见 `references/cover.md` |
-
-**TOC 默认开**：因为它只有一个开关 + 几乎所有文章都该开，可以在 Plan Checkpoint 开场说明
-里以"默认 TOC 开，要关告诉我"一句话带过，**不必单独成题**。
-
-**已经走默认值、不必单独问的事项**（仍然要在开场说明里明示"如要改请告诉我"，给用户机会
-反悔，不能完全藏起来）：
-
-- 最终文章语言：跟随源语言（除非用户已经在前文指定 / 已经翻译完成）。
-- 是否允许编辑删减、重组、改写语气：默认允许（按上面的信息保留比例执行）。
-- 是否要先看首屏样张：默认会先做（这就是 Phase 4）。
-- TOC：默认开。
-
-主题用户说"你定" → 取你推荐的第一个，**在选项里仍要把它和其它候选并列**，标"默认 · AI
-推荐"，留反悔余地，不能直接跳过主题问题。
-
-**如何偏离信息保留比例的"标配"**：每个文章类型都自带一个推荐保留比例（见上表）。绝大
-多数情况走标配即可。如果用户想精修（比如 "longform 但只要 60%" → 一篇被深度编辑过的长文），
-让用户**在开场说明后的自由文本里写一句**"我要 <类型> + <X%>" 覆盖。AI 收到覆盖后要在
-`plan/plan.md` 的 Brief 段同时记下"类型 / 标配保留 / 用户覆盖到 X%"，并提醒用户这是"非标配
-组合"——这类组合需要主 Agent 在写每节时手动调整正文/视觉比例。
-
-**Plan Checkpoint 开场消息模板（在收集决策之前先发一条简短说明）：**
-
-```
-plan/plan.md 已经写好（自检通过）。我会逐项跟你确认 5 件事：文章类型 / 主题 / 版式宽度 /
-配图模式 / 封面。
-
-我的推荐先放在这里供参考（不会替你选）：
-- 类型：<X>（含标配信息保留 <Y%>。理由：…）
-- 主题：<theme>（理由：…）
-- 版式宽度：<width>（理由：…）
-- 配图模式：<策略>（理由：…）
-- 封面：开 / 关（理由：…；若开，构图想法：…）
-
-默认走但你可以推翻：语言跟随源语言；允许编辑删减重组；TOC 开；接下来会先做首屏样张。
-信息保留比例如要偏离类型标配，下面回答完直接告诉我具体百分比（如 "longform 但只要 60%"）。
-
-下面逐项请你确认。
-```
-
-发完上面这条说明后，**立刻**用 AskQuestion 传 5 个 question（或在无工具环境下编号列出 5
-个问题、停下等答复）。**5 项全部收齐答复才能进 Phase 4**；若用户在自由文本里给了"非标配保留
-比例"，先确认 AI 已经记进 `plan/plan.md` 再进 Phase 4。
-
----
-
-## Phase 4 —— First Spread（文章版"第一章验收"）
-
-先做"封面（若开） + 首屏 + 第一节 + 一个代表性视觉块"。**脚手架在这里创建工作区**：
+本 Skill 自带一个轻量探测脚本，先跑一次，再根据结果决定怎么干活：
 
 ```bash
-# 默认开封面
-bash <path-to-beautiful-article>/scripts/scaffold.sh ./my-article --theme=<id>
-# Checkpoint 1 用户选了"封面 · 关"
-bash <path-to-beautiful-article>/scripts/scaffold.sh ./my-article --theme=<id> --no-cover
-bash <path-to-beautiful-article>/scripts/scaffold.sh --list-themes
+node skills/gpt-image-2/scripts/check-mode.js
+# 想拿结构化结果给上层程序用：
+node skills/gpt-image-2/scripts/check-mode.js --json
 ```
 
-它创建 Vite + React + TS 工作区（从 npm 安装 `reacticle` 最新发布版）+ `source/ plan/
-review/` 记忆目录 + assembler `article/Article.tsx` + 一个示例 section 组件
-（+ 默认 `article/Cover.tsx`，除非 `--no-cover`）。详见 `references/scaffold.md`。
+输出会给出 `mode = A` / `A?` / `B-or-C` 以及 `recommendation`。三个模式定义如下：
 
-首屏（Hero / Lead）写进 assembler `article/Article.tsx`；**第一个 Section 必须写成独立组件**
-`article/sections/01-*.tsx`（这是后续并行的代码锚点，见 `references/section-build.md`）。
-**封面**（若开）替换 `article/Cover.tsx` 里的 `<CoverPlaceholder />` 为按主题 + 文章主旨
-定制的图文构图，**外壳（3:4 容器 + 打印分页）不要动**。封面设计指南见 `references/cover.md`。
-`npm run dev` 预览。它决定标题气质 / 字号 / 内容密度 / Raw 风格 / 配图方式 / 主题是否合适。
+### Mode A · Garden 本地生图
 
-**第一个 Section 完成后，按硬性质检协议创建 First Spread Reviewer SubAgent**，写
-`review/first-spread-review.md`（**含封面 5 条自检**，见 `references/cover.md`），改完
-再进 Checkpoint 2。
+**触发条件**：环境变量 `ENABLE_GARDEN_IMAGEGEN` 为真（`1` / `true` / `yes` / `on`）**且** 存在 `OPENAI_API_KEY`。
 
----
+**行为**：完整端到端跑通"选模板 → 写 prompt → 调用脚本 → 出图落盘"。
 
-## Checkpoint 2 · First Spread（★硬节点，必须停）
+- 用 `scripts/generate.js` 文本生图、`scripts/edit.js` 编辑现有图。
+- prompt 默认落盘到 `garden-gpt-image-2/prompt/`、图片落盘到 `garden-gpt-image-2/image/`。
+- 这是最强的模式：你是图像工具的"持有者"。
 
-让用户验收首屏 + 第一个 Section，**并选定后续开发模式**。同样适用 Checkpoint 1 的决策收
-集铁律：**两项独立确认，禁止打包；优先 AskQuestion，无工具则编号列出、停下等答复**。
+### Mode B · Host-Native 委托宿主出图
 
-先发一条简短消息：
+**触发条件**：未启用 Garden（`ENABLE_GARDEN_IMAGEGEN` 未设置 / 为假），但**当前宿主 Agent 自带图像生成工具或图像 MCP**。
 
-```
-首屏 + 第一个 Section 做好了，npm run dev 在 localhost 预览。
-质检结论见 review/first-spread-review.md（已按 fail 项改完，列出修了哪些）。
-下面两件事请你独立确认：1) 验收结论 2) 后续开发模式。
-```
+**典型识别信号**（你应该自检）：
 
-然后用 AskQuestion 传**两个独立 question**（或编号列出两个问题，停下等答复）：
+- 你的工具集里出现 `image_generation` / `imagegen` / `dalle` / `nano_banana` / `mcp__*image*` / `make_image` / 类似名字
+- 用户在 ChatGPT / Codex / Gemini / Cursor 等支持原生出图的客户端中调用本 Skill
+- 用户显式说"用你自己的工具出图"
 
-1. **验收结论** —— 选项：`通过 · 进入完整生成` / `局部修改 · 我会另起一条说改哪里` /
-   `主题或版式不合适 · 回到 Checkpoint 1`。
-2. **后续开发模式** —— 选项：`A · 单 Agent 顺序（默认 · 最稳 · 风格最统一）` /
-   `B · 多 Agent 并行（最快 · 风格轻微差异）`。
+**行为**：本 Skill **退化成提示词工程指引**——
 
-**不要把这两件事打包成"通过 + A，OK 吗？"** —— 用户可能"通过验收但想用 B"或反之。
-两题都收齐答复后进入 Phase 5。
+1. 仍按"选模板 → 填字段 → 渲染最终 prompt"的流程走。
+2. **不要调用 `node scripts/generate.js`**（没有 API key、必失败）。
+3. 直接调用宿主自带的图像工具，把渲染好的 prompt 作为输入。
+4. 如用户希望可顺手把 prompt 文件保存到 `garden-gpt-image-2/prompt/`，但图片去向由宿主决定，不强制。
 
----
+### Mode C · Advisor 纯提示词顾问
 
-## Phase 5 —— Full Article Build
+**触发条件**：未启用 Garden，**且**宿主 Agent 也没有任何图像生成工具。
 
-按 Checkpoint 2 选定的开发模式生成完整文章。详见 `references/section-build.md` +
-`references/component-policy.md` + `references/raw-policy.md`。
+**行为**：本 Skill 退化为"高质量 prompt 撰写顾问"——
 
-**铁律 · 每个 Section 必须是独立组件文件**（`article/sections/NN-*.tsx`），**坚决不允许把
-多个 Section 直接写进一个组件**。`article/Article.tsx` 只是 **assembler**：import 并排序各
-Section，由**主 Agent 拥有**。大型 Raw 同样隔离到 `article/raw-blocks/NN-*.tsx`。文件级隔离
-是多 Agent 并行的前提。
+1. 按"选模板 → 填字段 → 渲染最终 prompt"流程走，缺信息就问用户。
+2. 把最终 prompt **直接打印给用户** + 保存一份到 `garden-gpt-image-2/prompt/<task-slug>-<timestamp>.md`。
+3. 附一句简短的"如何使用"建议（如：丢进 ChatGPT / Midjourney / DALL·E / Sora / Nano Banana / 自己后端 / 第三方 GPT Image 2 网关）。
+4. **不要假装出图成功**。明确告知用户："已生成可直接复用的高质量 prompt，请用你的图像工具执行。"
 
-开发模式（Checkpoint 2 选定）：
+### 模式决策表
 
-- **A · 单 Agent 顺序（默认）**：主 Agent 顺序写每个 `sections/NN-*.tsx`，最稳、风格最统一。
-- **B · 多 Agent 并行**：subagent 各**拥有一个** `sections/NN-*.tsx` 文件并行开发；**主 Agent
-  负责合并与稳定性** —— 维护 `Article.tsx` 的 import 与顺序、跑 `npm run typecheck` / `build`、
-  兜底主题与风格一致、解决冲突。subagent prompt 模板见 `references/section-build.md`。
+| 条件 | 模式 | 调用脚本？ | 落盘 prompt？ | 落盘图片？ |
+|---|---|---|---|---|
+| `ENABLE_GARDEN_IMAGEGEN=1` + 有 KEY | **A** | ✅ `generate.js` / `edit.js` | ✅ 自动 | ✅ 自动 |
+| `ENABLE_GARDEN_IMAGEGEN=1` 但没 KEY | A? | ❌（先要 KEY） | — | — |
+| 未启用 + 宿主有图像工具 | **B** | ❌（用宿主工具） | 可选 | 由宿主决定 |
+| 未启用 + 宿主无图像工具 | **C** | ❌ | ✅ 必须 | ❌（无法） |
 
-其余原则：正文是主体；所有 Raw 用 `--ra-*` 主题 token，禁止野生样式；100% 信息保留以长文
-结构为主、Raw / 配图做增强；低信息密度可提高视觉块比例，但仍必须是**文章形态**。
+### 模式不确定时
 
-每个 Section 完成后**必须**按硬性质检协议走 **Section Reviewer SubAgent**：是否完成 outline
-任务 / 是否符合信息保留比例 / 是否与前后衔接 / 是否过度组件化 / 是否有足够正文 / Raw 与
-配图是否有明确目的 / 本节序号自洽。
+- 如果你判断不清自己是 B 还是 C，**直接问用户一句**："是用你环境里的图像工具出图，还是只要我写好提示词？"
+- Mode A 调脚本失败（401 / 网络 / 配额）→ 报错并询问"切到 B / C 吗？"
 
-**SubAgent 以消息返回 pass/fail + 修复点**（pass 则一行 OK；fail 则列出修复点），**不要写
-`review/section-NN-review.md` 文件**。主 Agent 收到 fail 项后**直接修对应 section 文件**，
-然后再汇报本节交付。
+## 用户输入工具
 
----
+当此技能需要向用户提问时，遵循以下规则：
 
-## Phase 6 —— Final Review（三视角终审）
+1. 优先使用当前运行时提供的用户输入工具。
+2. 如果没有对应工具，则用简短的纯文本编号问题提问。
+3. 能合并的问题尽量一次问完。
 
-从读者 / 主题 / 技术三个视角验收，产出 `review/final-review.md` + 修复列表。
-完整硬性清单见 `references/review-checklist.md`。推荐三个 Reviewer（无 Teams 时至少
-一个独立 SubAgent）：
+## 技能结构
 
-1. **Editorial Reviewer**：文章性、信息取舍、结构。
-2. **Visual Reviewer**：主题、Raw、配图、移动端。
-3. **Technical Reviewer**：构建、控制台、代码 / 公式、可访问性。
+- `scripts/check-mode.js`：**先跑这个**，检测运行模式（A / B / C）
+- `scripts/generate.js`：文本生图（仅 Mode A 使用）
+- `scripts/edit.js`：基于原图 / 遮罩改图（仅 Mode A 使用）
+- `scripts/shared.js`：共享请求、保存、环境变量读取逻辑
+- `references/`：分层结构化提示词模板（A / B / C 三模式都用）
 
-核心红线：它仍是一篇文章（不是应用）· 信息保留比例符合 Plan · 必须保留的信息没丢 ·
-主题气质统一 · Raw 无野生样式 · 没有明显 AI 味 · 桌面 + 移动端可读 · HTML 可构建可打开可分享。
+## 环境变量
 
----
+按以下顺序读取配置：
 
-## Phase 7 —— Repair（最小切片）
+1. CLI 参数
+2. `process.env`
+3. `<cwd>/.env`
+4. `<cwd>/.gateway.env`
+5. `~/.gateway.env`
 
-按最小单位修复，规则见 `references/repair-policy.md`。**禁止**：只反馈一处就重写整篇 /
-为修视觉改动已确认的文章结构 / 为压缩信息删掉用户指定必须保留的内容。**有修复才写**
-`review/repair-log.md`（无修复 / 一次过则不写）。
+核心变量：
 
----
+- `ENABLE_GARDEN_IMAGEGEN` — **模式开关**。`1` / `true` / `yes` / `on` 时启用 Mode A；未设置或其它值则进入 Mode B / C。
+- `OPENAI_API_KEY` — Mode A 必需；B / C 不需要。
+- `OPENAI_BASE_URL` — 默认 `https://api.openai.com/v1`，可指向第三方兼容网关。
+- `OPENAI_IMAGE_MODEL` — 默认 `gpt-image-2`，可换成网关支持的型号（如 `gpt-image-1` / `dall-e-3`）。
 
-## Checkpoint 3 · Final（★交付确认）
+默认实现按 OpenAI 兼容接口工作，不写死任何第三方网关。
 
-终审改完后，**停下来**让用户独立确认交付决策（不要"我打算导出 HTML 了，没问题就这样"
-直接跳过）。优先 AskQuestion，无工具则在消息里编号列出问题、停下等答复。
+## 默认输出目录
 
-- **交付决策** —— 选项：`通过 · 导出 HTML 交付` / `通过 · 同时导出 HTML + PDF` /
-  `还有局部修复 · 我会列出具体修哪里` / `先停一停 · 我要再看看`。
+如果用户没有明确指定输出路径，统一使用当前工作区下的：
 
-只有这一项决策，但**仍要主动停下来问**，不要静默走默认导出 HTML。
+- 提示词目录：`garden-gpt-image-2/prompt/`（**A / B / C 三种模式都建议用**，方便复用与版本管理）
+- 图片目录：`garden-gpt-image-2/image/`（**仅 Mode A 使用**；Mode B 由宿主决定，Mode C 不产生图）
 
----
+如果目录不存在，脚本（Mode A）必须自动创建；Mode B / C 在写 prompt 前手动 `mkdir -p`。
 
-## Phase 8 —— Delivery
+## 默认命名规则
 
-构建并交付（命令见 `references/html-output.md`）：
+如果用户没有明确指定文件名，脚本应自动生成与当前任务相关的文件名，并追加当前时间戳，避免重名。
 
-- `article/article.html`（自包含单页，CSS + JS 内联，断网可打开）—— **主交付物**。
-- **可选** `article/article.pdf`：仅当 Checkpoint 3 用户选了"通过 · 同时导出 HTML + PDF"
-  时才生成。命令：
-  ```bash
-  bash <path-to-beautiful-article>/scripts/html-to-pdf.sh
-  ```
-  脚本探测系统已装的 chromium-family 浏览器，注入 `@media print` 覆盖（TOC 从左右栅格塌
-  成上下排布、TOC 独占首页），headless 打印。零 npm 依赖。详细原理 / 故障排除见
-  `references/pdf-output.md`。
-- 简短编辑说明：文章类型 / 信息保留比例 / 主题 / 配图策略 / 主要编辑取舍。
+命名规则：
 
----
+- 提示词：`garden-gpt-image-2/prompt/<task-slug>-<timestamp>.md`
+- 图片：`garden-gpt-image-2/image/<task-slug>-<timestamp>.png`
 
-## 默认策略
+其中：
 
-- 输出 single HTML；文章类型 `longform`；信息保留 100%。
-- 语言：用户**未指定**则**跟随源材料语言**；**指定且与源不一致**则先产出地道翻译版
-  `source/source.<lang>.md` 再据此编写（去翻译腔，见 Phase 1）。
-- 主题：技术 / 证据优先 `tufte`，叙事 / 评论优先 `press`（按源材料推荐）。
-- 版式：宽度默认 `regular`、**TOC 默认开**（与主题解耦，见 `references/layout.md`，均在 Checkpoint 确认）。
-- 配图：**配图模式是 Checkpoint 1 必选项**（`none` / `user-assets` / `placeholders` /
-  `ai-generated`），只决定是否使用外部 `Image`，**不主动生成 AI 图片**。
-- Raw：**与配图正交、始终默认存在**，鼓励多用，但必须服务具体段落、用主题 token。选 `none`
-  不影响 Raw。
-- 自检：**Plan 内联自查（无 SubAgent、无文件）**；**First Spread 与 Final 用 SubAgent + 写文件**；
-  **Section 用 SubAgent + 消息返回（不写文件）**。详见"硬性质检协议"段。
-- 决策收集：Checkpoint 1 / 2 / 3 **每项独立确认 · 禁止静默替用户选择**。可推荐，不能跳过。
-  优先 `AskQuestion` 工具（每项一个独立 question）；无工具则停下、编号列出问题等用户答复。
-- 修复：最小切片，有修复才写 `review/repair-log.md`。
-- **Colophon · 不可移除**：scaffold 在 `article/Article.tsx` 末尾自带 colophon Raw 块
-  （`Made with [beautiful-article](github 仓库) · <主题> theme`，低对比小字、theme token 自适应）。
-  **每篇文章必须保留**，禁止删除、禁止移到 Hero 旁边或浮动到角落。切换主题时同步更新 colophon
-  里的主题名 + `main.tsx` 的 `<ThemeProvider theme="...">` 两处。
-- **封面 · 默认开 · 必须图文并茂**：scaffold 默认在 `article/Cover.tsx` 创建**屏幕 3:4 +
-  PDF 独占首页**的书封式题图外壳 + 占位（`--no-cover` 关闭）。封面位于 TOC + Hero + 正文之上，
-  独立存在。Phase 4 First Spread 时主 Agent 把 `<CoverPlaceholder />` 替换为按 **主题 +
-  文章主旨** 定制的图 + 字构图。**硬约束**：外壳比例 / 打印分页不可动、必须有视觉元素
-  + 文字、只用 `--ra-*` token、不要远程图片、不要重复 Hero 内容。**视觉技术全开放**：
-  SVG / CSS / Canvas / 复杂 React 组件 / 任意混搭由 Agent 自选，效果好就行。详见
-  `references/cover.md`（含 5 条自检 + 5 个构图模板 + 各主题封面起手）。PDF 导出会自动让
-  封面独占首页、TOC 从第二页开始。
-- **PDF 导出 · 可选**：主交付物始终是 `article/article.html`。**仅当** Checkpoint 3 用户选了
-  "通过 · 同时导出 HTML + PDF"，才跑 `bash <skill>/scripts/html-to-pdf.sh` 生成
-  `article/article.pdf`；不选则不动。不要替用户默认导。详见 `references/pdf-output.md`。
+- `<task-slug>`：根据当前用户要求自动提取一个相关短名称
+- `<timestamp>`：当前时间戳，例如 `20260424-153045`
 
----
+示例：
 
-## 成功标准
+- `garden-gpt-image-2/prompt/live-commerce-ui-20260424-153045.md`
+- `garden-gpt-image-2/image/live-commerce-ui-20260424-153045.png`
+- `garden-gpt-image-2/prompt/vr-headset-exploded-view-20260424-153102.md`
+- `garden-gpt-image-2/image/vr-headset-exploded-view-20260424-153102.png`
 
-- 它**首先是一篇文章**。
-- 最终文章语言符合用户意图（未指定=跟随源语言；指定=全文统一为目标语言，地道、无翻译腔、
-  无残留源语言片段）。
-- 用户确认的信息密度被尊重；源材料关键内容没有意外丢失。
-- 主题气质统一；配图和 Raw 都服务阅读。
-- 页面比 Markdown 更值得读；HTML 可直接打开和分享。
-- 40% 信息时读起来像被编辑过的文章，而非缩水摘要；100% 信息时像被精修过的长文，
-  而非原文搬运。
+## Prompt 保存规则
 
----
-
-## 相关资源（按"何时读"标注）
-
-| 文件 | 何时读 | 内容 |
+| 模式 | 是否必须保存 prompt | 说明 |
 |---|---|---|
-| `references/harness.md` | Phase 0 | Skill 的 harness 视角、六问、状态文件约定 |
-| `references/source-to-markdown.md` | Phase 1 | 各类输入 → source.md 规则、抽取自检、脚本用法 |
-| `references/article-types.md` | Phase 2 | 文章类型路由总览（含逐类型链接） |
-| `references/article-types/<type>.md` | Phase 2 选定类型后 | 单类型结构 / 组件 / Raw 边界 / 配图倾向 / 自检 |
-| `references/information-density.md` | Phase 2 | 信息密度等级、与组件 / 视觉比例的关系 |
-| `references/plan-template.md` | Phase 2 | 单一 `plan/plan.md` 模板（Brief / Outline / Theme / Assets 四段）与写法 |
-| `references/theme-selection.md` | Phase 2 | 主题选择、density 与 theme 解耦、新增主题约束 |
-| `references/layout.md` | Phase 2 / Checkpoint | 版式：宽度模式（与主题解耦）+ TOC，确认与用法 |
-| `references/asset-policy.md` | Phase 2 | 配图四种来源、AI 配图提示词原则、图片自检 |
-| `references/cover.md` | Phase 2 / Phase 4 写封面时 | 书封式封面设计指南（屏幕 3:4 / PDF 独占首页）：硬约束、视觉技术全开放、构图模板、各主题封面起手、5 条自检 |
-| `references/section-build.md` | Phase 4/5 | 一节一文件铁律、单/多 Agent 模式、并行 subagent prompt、主 Agent 合并 |
-| `references/component-policy.md` | Phase 4/5 每节 | reacticle 组件协议、prose-first、信息密度与组件比例 |
-| `references/raw-policy.md` | Phase 4/5 每节 | Raw 允许 / 禁止、token 驱动、Raw 自检 |
-| `references/html-output.md` | 构建 / 交付时 | dev / build / 单文件 HTML 命令与产物 |
-| `references/pdf-output.md` | Phase 8 Delivery 当用户选 PDF 导出时 | `html-to-pdf.sh` 用法、TOC 排版原理、Raw 在 PDF 的表现、故障排除 |
-| `references/review-checklist.md` | Phase 6 | 各阶段 Reviewer 清单与 prompt 模板 |
-| `references/repair-policy.md` | Phase 7 | 最小切片修复对照表 |
-| `references/scaffold.md` | Phase 4 建项目时 | 脚手架做什么、用法、工作区结构、切主题 |
-| `theme-profiles/index.json` + `*.md` | Phase 2 选主题 / Phase 5 写作 | 主题 authoring profile（给 AI 读，非 CSS） |
-| `scripts/scaffold.sh` | Phase 4 跑一次 | 一键创建文章工作区 |
-| `scripts/html-to-pdf.sh` | Phase 8 Delivery 仅当用户选 PDF | HTML → PDF（headless 浏览器 + 注入 print CSS，零 npm 依赖） |
-| `scripts/pdf-print-overrides.css` | 改 PDF 样式时 | `html-to-pdf.sh` 注入到 `<head>` 的 `@media print` 覆盖：A) TOC 塌成上下排布；B) 分页行为（撤销 `.ra-section` 原子化、标题不孤儿、寡行控制等）；C) 封面独占首页 |
-| `scripts/source-to-markdown-markitdown.py` | Phase 1 | MarkItDown 主路径，适合复杂 PDF / DOCX / HTML |
-| `scripts/source-to-markdown.py` | Phase 1 | 轻量 fallback，适合 Markdown / TXT / 简单 HTML 或 MarkItDown 不可用时 |
+| Mode A | ✅ 必须 | 进入实际生成 / 编辑流程必落盘 |
+| Mode B | 推荐 | 默认建议保存方便复用；用户说"不用"就略过 |
+| Mode C | ✅ 必须 | 用户拿走 prompt 自己执行，不落盘等于白干 |
+
+通用规则（适用三种模式）：
+
+1. 如果用户显式给了 prompt 文件路径，可直接使用该文件作为输入。
+2. 如果用户直接给的是文本 prompt，也要先把最终 prompt 保存到 `garden-gpt-image-2/prompt/`。
+3. 如果用户显式指定了 `--prompt-output`，则尊重用户指定路径。
+4. 否则使用默认命名规则自动保存。
+
+## 图片保存规则（仅 Mode A）
+
+1. 如果用户显式指定了 `--image` 或 `--output`，则尊重用户指定路径。
+2. 否则默认保存到 `garden-gpt-image-2/image/`。
+3. 文件名应和当前任务语义相关，并附加时间戳。
+
+Mode B 由宿主图像工具决定保存方式；Mode C 不产生图片。
+
+## 快速用法
+
+### 0. 检测运行模式（**任何任务的第一步**）
+
+```bash
+node skills/gpt-image-2/scripts/check-mode.js
+```
+
+输出会告诉你当前是 Mode A / B / C，决定后续是否调用 `generate.js` / `edit.js`。下面 1~4 仅在 **Mode A** 下使用。
+
+### 1. 文本生图（Mode A）
+
+```bash
+node skills/gpt-image-2/scripts/generate.js \
+  --prompt "A cute baby sea otter" \
+  --size 1024x1024 \
+  --quality high
+```
+
+### 2. 用提示词文件生图（Mode A）
+
+```bash
+node skills/gpt-image-2/scripts/generate.js \
+  --promptfile garden-gpt-image-2/prompt/poster-20260424-153045.md
+```
+
+### 3. 编辑已有图片（Mode A）
+
+```bash
+node skills/gpt-image-2/scripts/edit.js \
+  --image assets/source.png \
+  --prompt "Replace the background with a clean studio scene"
+```
+
+### 4. 带遮罩的局部编辑（Mode A）
+
+```bash
+node skills/gpt-image-2/scripts/edit.js \
+  --image assets/source.png \
+  --mask assets/mask.png \
+  --prompt "Replace only the masked area with a glass vase"
+```
+
+### 5. Mode B / C 的"用法"
+
+没有命令行入口——本 Skill 此时只是**提示词工程指南**：
+
+- **Mode B**：渲染好最终 prompt → 调用宿主自带的 `image_generation` 类工具（参数中传入 prompt）→ 拿到图。
+- **Mode C**：渲染好最终 prompt → 保存到 `garden-gpt-image-2/prompt/<task-slug>-<timestamp>.md` → 把内容直接展示给用户 → 提示用户在哪些图像工具中可以直接复用。
+
+## JSON 模板工作方式
+
+当 `references/` 中提供 JSON 模板时，按下面规则使用：
+
+1. 先从 `SKILL.md` 找到最贴近的分类目录。
+2. 再定位到具体模板文件。
+3. 模板中的 `{argument ...}` 表示可替换参数。
+4. 用户明确提供的值，直接填入。
+5. 用户没有提供，但模板标了 `default` 的，默认可以先用默认值。
+6. 如果缺失信息会显著影响结果，主动询问用户。
+7. 用户也可以明确说“你随机生成”，这时可以保留默认值或在模板允许范围内合理随机化。
+
+## 询问规则
+
+当模板缺少关键变量时，不要笼统地问“你想要什么风格？”。应当根据模板字段精确提问。
+
+例如直播 UI 模板缺少主体时，应优先问：
+
+- 主播是谁？
+- 用真人照片、名人名字、人物描述，还是完全随机生成？
+
+缺少商品信息时应问：
+
+- 商品名称是什么？
+- 商品价格是否指定？
+- 是否希望我自动补全评论和礼物内容？
+
+## 模板索引
+
+按任务类型只读取最贴近的具体模板文件，不要一次性全读整个 `references/`。
+
+### 1. 方法论总文档
+
+先读：
+
+- `references/prompt-writing.md`
+
+适用于：
+
+- 你还没决定怎么构造 JSON 模板
+- 你需要判断哪些字段该问、哪些字段可默认、哪些字段可随机
+- 你需要把案例抽象成可复用模板
+
+### 2. UI Mockups (`references/ui-mockups/`)
+
+适合各种“界面 + 内容”的样机视觉。当前已落地：
+
+- `live-commerce-ui.md` — 电商直播带货截图样机（主播 + 聊天区 + 礼物区 + 商品卡）
+- `social-interface-mockup.md` — 社交平台动态详情页样机（Twitter/X、小红书、微博、Threads 等）
+- `product-card-overlay.md` — 落地页 hero / 详情页主图（人物 + 商品 + 卖点 + 价格）
+- `chat-interface-scene.md` — 聊天 / 对话界面样机（iMessage、微信、群聊、AI 助手）
+- `short-video-cover-ui.md` — 短视频封面 / 直播缩略图（YouTube、抖音、B 站、VTuber stream）
+- `landing-page-case-study.md` — 深色 SaaS / 营销 case study **长页面** UI mockup（多 section + 滚动叙事 + 数据卡 + CTA）
+
+### 3. Product Visuals (`references/product-visuals/`)
+
+适合“以商品为视觉中心”的图。当前已落地：
+
+- `exploded-view-poster.md` — 产品爆炸视图海报（主体垂直堆叠 + callout + 顶部 logo + 底部品牌区）
+- `white-background-product.md` — 电商纯白底主图（单品 / 多角度 / 极简营销叠层）
+- `premium-studio-product.md` — 高级影棚商业产品图（杂志广告级氛围）
+- `packaging-showcase.md` — 礼盒 / 包装展示图（外盒 + 内容物展示）
+- `lifestyle-product-scene.md` — 生活方式产品场景图（商品出现在真实场景中）
+- `ecommerce-marketing-board.md` — 中式电商超复合销售看板（主图 + 详情页 + 卖点 + 使用步骤 + 场景 + TVC 分镜组合一图）
+
+### 4. Maps (`references/maps/`)
+
+适合“地图类视觉”（信息图已抽离到独立分类 17）。当前已落地：
+
+- `food-map.md` — 城市美食手绘地图（编号点位 + 图例 + 中心吉祥物）
+- `travel-route-map.md` — 旅行路线图（多日行程 / 单日 city walk / 户外路线）
+- `illustrated-city-map.md` — 城市风貌插画地图（地标 + 江山 + 文化元素）
+- `store-distribution-map.md` — 品牌门店 / 服务覆盖分布图
+- `itinerary-day-trip-map.md` — **一日游** split 海报（左 parchment 行程卡 + 右奇幻写实地图，5-7 站点严格对齐）
+
+### 5. Slides & Visual Docs (`references/slides-and-visual-docs/`)
+
+适合“一页讲清楚一件事”的视觉文档。当前已落地：
+
+- `dense-explainer-slides.md` — Irasutoya × 霞关混合高密度讲解 Slide
+- `policy-style-slide.md` — 政策 / 政府公告 / 白皮书风格说明 Slide
+- `visual-report-page.md` — 商业报告执行摘要 / 投资人简报 / 年报概览页
+- `educational-diagram-slide.md` — 教学示意图（概念 / 机制 / 流程分解）
+
+### 6. Poster & Campaigns (`references/poster-and-campaigns/`)
+
+适合“品牌主视觉 + campaign + banner + 杂志封面”。当前已落地：
+
+- `brand-poster.md` — 品牌主海报（产品 / 人物 / 纯文字主张）
+- `campaign-kv.md` — Campaign Key Visual + 衍生 layout 系统
+- `banner-hero.md` — Web hero / 落地页 / app banner（横向构图 + CTA）
+- `editorial-cover.md` — 杂志 / 期刊 / 出版物封面
+- `biomimetic-concept-poster.md` — 仿生工业设计概念海报（自然原型 → 演化条 → hero render → 多视图技术图）
+- `vintage-editorial-infographic.md` — 复古档案 / 1940s 编辑式信息图海报（人物 + 公式 + 时间轴 + 模型，Bell Labs 风）
+- `character-catalog-poster.md` — 同一角色多版本信息图海报（星座 / 元素 / 朝代 / 人格系列卡片）
+- `lineup-comparison-poster.md` — 系列产品 lineup 对比信息图海报（30+ SKU 同图 + 图例 + 等级 key）
+
+### 7. Portraits & Characters (`references/portraits-and-characters/`)
+
+适合“人物视觉”。当前已落地：
+
+- `professional-portrait.md` — 职业级商务肖像（LinkedIn / 团队页 / 媒体配图）
+- `founder-portrait.md` — 创始人媒体大片肖像（戏剧灯光 + 留标题位）
+- `virtual-host.md` — VTuber / 虚拟主播个人卡 + 直播预览
+- `character-sheet.md` — 角色综合设定稿（三视图 + 表情 + 服装 + 配色板）
+- `pose-reference-sheet.md` — N×N 姿势 / 动作字典参考表（同一角色多姿势，舞蹈 / 战斗 / 健身）
+
+### 8. Scenes & Illustrations (`references/scenes-and-illustrations/`)
+
+适合 “氛围 + 故事 + 情绪” 的插画类视觉。当前已落地：
+
+- `healing-scene.md` — 治愈系日常 / 季节场景插画
+- `concept-scene.md` — 电影感概念大场景 / IP key art
+- `picture-book-scene.md` — 童书 / 绘本内页 / 节日卡片
+- `minimalist-mood-scene.md` — 极简留白氛围图 / 文学性壁纸
+
+### 9. Editing Workflows (`references/editing-workflows/`)
+
+适合“基于现有图片做编辑”的图改任务（对应 `scripts/edit.js`）。当前已落地：
+
+- `background-replacement.md` — 背景替换（商品 / 人像 / 户外 / 棚景）
+- `local-object-replacement.md` — 局部对象替换（配合或不配合蒙版）
+- `object-removal.md` — 杂物 / 路人 / 电线 / 瑕疵去除
+- `product-retouching.md` — 产品精修（光泽 / 标签 / 阴影 / 瑕疵）
+- `portrait-local-edit.md` — 人像局部修改（发型 / 服装 / 妆容 / 配饰）
+
+### 10. Avatars & Profile (`references/avatars-and-profile/`)
+
+适合“风格化头像 / 人设 / 网格 / 贴纸 / 系列肖像”等"个人形象"类视觉。当前已落地：
+
+- `style-transfer-selfie.md` — 把参考图人物转成 cosplay / 哥特 / 复古胶片 / 偶像写真等任意风格
+- `character-grid-portrait.md` — 同一角色 n×n 网格肖像（多职业 / 多表情 / 多朝代 / 多风格）
+- `themed-3d-icon.md` — Kawaii 3D / Minecraft / 拟物 3D 应用图标式头像
+- `sticker-set.md` — 贴纸套装 / 表情包合集（独立元素 + 描边 + 标签）
+- `cultural-portrait-series.md` — 朝代 / 神话 / 文学 / 民族系列肖像
+
+### 11. Storyboards & Sequences (`references/storyboards-and-sequences/`)
+
+适合“多分镜 / 漫画 / 关系图 / 流程步骤”等"叙事性序列"类视觉。当前已落地：
+
+- `four-panel-comic.md` — 4 格漫画 / 讽刺漫画 / 段子漫画（起承转合 + 对话气泡）
+- `manga-spread-page.md` — 单页 / 跨页漫画分镜（不规则格子 + 对话 + 心声）
+- `anime-key-visual.md` — 单图动漫 KV / 轻小说封面 / IP 海报
+- `character-relationship-diagram.md` — 角色关系图海报（卡片 + 关系连线 + 图例）
+- `recipe-process-flowchart.md` — 食谱 / 教程 / 流程步骤图（编号 + 插图 + 说明）
+- `product-tvc-storyboard.md` — 产品 TVC 商业广告分镜板（9-panel 实拍质感 + 镜头描述 + 时长）
+- `cinematic-storyboard-grid.md` — **电影感叙事分镜** contact sheet（3×4 / 4×4，连续叙事 + cinematic still）
+- `process-photo-board.md` — 真人 cinematic 流程板（装备穿戴 / 化妆 / 训练 / 操作分解，编号 + 步骤递进）
+
+### 12. Grids & Collages (`references/grids-and-collages/`)
+
+适合“多面板网格 / 拼贴 / 立项 board”类视觉。当前已落地：
+
+- `banner-grid-2x2.md` — 2×2 营销 banner 套装（一次出 4 张统一系列设计）
+- `lookbook-grid.md` — 7 日 lookbook / 9 宫 self-care / TOP N 清单图
+- `mixed-style-multi-panel.md` — 多风格混合拼贴（同一主体不同画风演绎）
+- `anime-pitch-board.md` — 动漫 / 游戏 / 影视立项 pitch board（KV + 角色 + 世界观 + 文案）
+- `ad-banner-multi-grid.md` — 多行业 / 多主题混合广告 banner 网格（每格独立行业 + 风格 + 文案）
+
+### 13. Branding & Packaging (`references/branding-and-packaging/`)
+
+适合“品牌识别系统 / 吉祥物 / 包装设计”类视觉。当前已落地：
+
+- `brand-identity-board.md` — 品牌识别系统板（logo + 配色 + 字体 + 应用 mockup）
+- `mascot-brand-kit.md` — 吉祥物多面板品牌识别套装（主形象 + 三视图 + 表情 + 应用）
+- `cosmetic-packaging.md` — 化妆品 / 护肤品 单瓶 / 系列 / 礼盒包装
+- `beverage-label-design.md` — 饮料 / 食品 / 调味品标签设计（国潮 / 日式 / 西式）
+- `full-mascot-brand-doc.md` — **18+ 模块大型品牌识别 + 吉祥物全流程文档**（DNA / moodboard / 草图 / 线稿 / 3D / 配色 / 材质 / 应用一图概览）
+- `character-merch-board.md` — IP 角色 + 周边 / 包装 / 海报 / 社交 profile 多元素综合品牌板
+
+### 14. Typography & Text Layout (`references/typography-and-text-layout/`)
+
+适合“字面优先 / 双语版式”等"以文字为主视觉"的类型。当前已落地：
+
+- `title-safe-poster.md` — 大字主张型海报（日式高能量 / 瑞士极简 / 复古印刷）
+- `bilingual-layout-visual.md` — 中英 / 中日双语版式视觉（文化 / 学术 / 跨文化品牌）
+
+### 15. Assets & Props (`references/assets-and-props/`)
+
+适合“图标集 / 游戏截图”等"成套素材 / 游戏资产"类视觉。当前已落地：
+
+- `retro-skeuomorphic-icons.md` — 拟物 / Y2K / 像素 图标集（成套统一风格）
+- `game-screenshot-mockup.md` — 游戏内截图 mockup（HUD + 字幕 + 任务面板）
+
+### 16. Academic Figures (`references/academic-figures/`)
+
+适合“论文 / 顶会投稿 / 学术海报 / 答辩 PPT / 开题答辩 / 期刊投稿 Graphical Abstract”的配图。整体偏白底 + 出版物字体 + 几何精确 + 低饱和工程色（深蓝 / 灰蓝 / 黑灰为主，≤3 主色）+ 可单色印刷。**严格禁止虚构定量数据**（数值 / 等值线 / 色标范围 / 公式）。
+
+CS / CV / ML 方向：
+
+- `method-pipeline-overview.md` — 方法总览图 / pipeline figure（多 stage 块 + 数据流；变体 4 提供工程类左/中/右 三段式技术路线图）
+- `neural-network-architecture.md` — 神经网络架构图（layer 块 + tensor shape + 跳连）
+- `qualitative-comparison-grid.md` — 多方法 qualitative 对比网格（**行 = 样本，列 = 方法**）
+
+工程 / 自然科学 / 答辩通用：
+
+- `scientific-schematic.md` — 概念 / 原理 / 实验装置示意图（自由度高，自然语言模板）
+- `mechanism-diagram.md` — 机理示意图 / 因果链路 / 转化路径（中心对象 + 多阶段转化 + 结果区；含三段式因果链 / 循环自激发 / 多分支竞争 三种变体）
+- `multi-condition-comparison.md` — **多工况 / 多条件结果对比图**（同一对象在不同 condition 下的并列结果，2×2 / 1×N / M×N；强调 panel 间严格统一）
+- `publication-chart.md` — publication-ready 数据图表（bar / line / scatter / heatmap / box）
+
+总览 / 摘要 / 答辩首页：
+
+- `graphical-abstract.md` — 期刊投稿 Graphical Abstract / 图形摘要（横向 4 段式 / 中心展开 / 方形 / 竖版四种变体）
+- `research-overview-poster.md` — 开题 / 答辩 / 汇报首页研究总览图（上中下三层 + 五模块；含中心辐射 / 左右双栏 / 极简 三种变体）
+
+> 选择策略：CS/CV/ML 论文首选 `method-pipeline-overview` + `qualitative-comparison-grid`；工程 / 能源 / 化工 / 材料方向首选 `method-pipeline-overview` 变体 4 + `mechanism-diagram` + `multi-condition-comparison`；投稿期刊摘要图用 `graphical-abstract`；答辩 PPT 首页用 `research-overview-poster`。
+
+### 17. Infographics (`references/infographics/`)
+
+适合“信息图 / 高密度科普 / 手绘信息图 / KPI 仪表盘”等"信息可视化大图"。当前已落地：
+
+- `legend-heavy-infographic.md` — 高图例密度科普 / 因果链 / 演化 / 解剖图（双语）
+- `hand-drawn-infographic.md` — **手绘风**信息图（macaron / morandi / 黑板 / 牛皮纸；自然语言模板）
+- `bento-grid-infographic.md` — 便当格模块化信息图（高密度多模块 widget 排布）
+- `comparison-infographic.md` — 二元 / 多元对比信息图（A vs B / 套餐档位 / 误区 vs 正解）
+- `step-by-step-infographic.md` — 步骤教程信息图（插画感、温暖；非工程流程图）
+- `kpi-dashboard-infographic.md` — KPI 仪表盘式信息图（年度回顾 / Wrapped / 业务 dashboard）
+
+### 18. Technical Diagrams (`references/technical-diagrams/`)
+
+适合“系统架构 / 流程 / 时序 / 状态机 / ER / 思维导图 / 网络拓扑”等工程示意图。统一暗色 grid 背景 + 等宽字体 + 角色编码配色，每个模板都附 light 变体。
+
+⚠️ 注意：本目录生成的是 **PNG 位图**，**不是可编辑 SVG**；需要可编辑请改用 mermaid / draw.io / excalidraw / Figma。当前已落地：
+
+- `system-architecture.md` — 系统架构图（前端 + 后端 + DB + 缓存 + 队列 + 外部）
+- `flowchart-decision.md` — 流程图 / 决策图（BPMN 形状语义 + Yes/No 分支）
+- `sequence-diagram.md` — 时序图（actor + lifeline + 消息箭头 + 激活条）
+- `state-machine.md` — 状态机 / 生命周期图（state + transition + guard / action）
+- `er-diagram.md` — ER 图 / 数据模型图（实体 + 字段 + PK/FK + crow's foot 关系）
+- `mind-map-tech.md` — 技术主题思维导图（中央 + 放射式分支）
+- `network-topology.md` — 网络拓扑图（设备 glyph + zone / VPC + 带宽 / 协议标）
+
+## 提示词工作流（模式感知）
+
+无论 A / B / C，**前 6 步是共用的**；区别只在第 7-8 步如何"出图"。
+
+1. **跑 `check-mode.js` 确定模式**（A / B / C）。
+2. 判断任务是生图还是改图。
+3. 识别它属于哪个分类目录（参考下方"模板索引"）。
+4. 只读取对应的具体模板文件，**不要一次读整个 references/**。
+5. 严格遵循模板格式：大部分模板用 JSON 主模板（结构化任务首选），少数模板（`infographics/hand-drawn-infographic.md`、`academic-figures/scientific-schematic.md` 等）使用「结构化自然语言 + 参数」混合形式，因为强行 JSON 会限制创作自由。
+6. 把用户输入映射到模板参数；关键信息不足时主动发起有针对性的澄清问题。
+
+到此 prompt 已渲染好。下面按模式分叉：
+
+7-A. **Mode A**：把最终 prompt 保存到 `garden-gpt-image-2/prompt/`，调用 `scripts/generate.js` 或 `scripts/edit.js`，图片落到 `garden-gpt-image-2/image/`。
+7-B. **Mode B**：把最终 prompt 直接传给宿主的图像工具调用；按需保存 prompt 副本到 `garden-gpt-image-2/prompt/`。
+7-C. **Mode C**：把最终 prompt 保存到 `garden-gpt-image-2/prompt/<task-slug>-<timestamp>.md`，并把完整 prompt 在对话中展示给用户，附一句简短的"如何使用 / 推荐工具"建议。
+
+8. 任务结束后用一句话告诉用户：当前模式是什么、prompt 落在哪、图（如有）落在哪。
+
+## 重要约束
+
+通用：
+
+- 模板文件中的 JSON 是**提示词结构模板**，不是 API 请求体模板。
+- 三种模式下，最终交给图像模型的都是"渲染后的 prompt 字符串"——可以是拍平的 JSON、可以是结构化自然语言段落，按模板原样使用。
+- 除非用户明确要求，否则**不要把 SKILL.md 里的"模式说明"复制到最终 prompt 里**——那是给 Agent 看的元信息。
+
+仅 Mode A 适用：
+
+- 生成脚本使用 JSON body
+- 编辑脚本使用 multipart form data
+- 响应优先按 `data[0].b64_json` 解析，也兼容 `data[0].url`
+- 除非上游接口明确要求，不额外引入特殊 query 参数
+
+## 何时提问
+
+只在这些信息缺失且会显著影响结果时提问：
+
+- 没有 prompt 目标
+- 改图时没有原图
+- 主体身份或视觉类型决定结果走向
+- 商品 / 价格 / 文案 / UI 文本是画面核心组成部分
+- 用户同时表达了多个互相冲突的目标
+
+除此之外，优先自己做合理默认并继续执行。
